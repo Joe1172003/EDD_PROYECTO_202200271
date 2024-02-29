@@ -1,0 +1,40 @@
+[
+    {
+      "id": 1,
+      "nombre": "Sergio",
+      "img_p": 2, 
+      "img_g": 2
+    },
+    {
+      "id": 2,
+      "nombre": "Joel",
+      "img_p": 3,
+      "img_g": 1
+    },
+    {
+      "id": 3,
+      "nombre": "Marck",
+      "img_p": 1,
+      "img_g": 3
+    },
+    {
+      "id": 4,
+      "nombre": "Zucerbein",
+      "img_p": 3,
+      "img_g": 4
+    },
+    {
+      "id": 5,
+      "nombre": "Sebastian",
+      "img_p": 1,
+      "img_g": 1
+    }, 
+    {
+      "id": 6,
+      "nombre": "Alejandro",
+      "img_p": 4,
+      "img_g": 1
+    }
+
+]
+
