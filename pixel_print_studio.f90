@@ -193,7 +193,6 @@ module Fase_1
     ! ------ end Lista de clientes atendidos
 
 
-
       contains   
       !agregar a cola reception
       subroutine encolar(this, cliente)
@@ -307,7 +306,6 @@ module Fase_1
 
             ! Generar el archivo PNG utilizando Graphviz
             call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
-            print *, 'Graphviz file generated: ', trim(adjustl(filename)) // '.png'
 
       end subroutine grafica_cola_recepcion
 
@@ -526,7 +524,6 @@ module Fase_1
 
          ! Generar el archivo PNG utilizando Graphviz
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
-        print *, 'Graphviz file generated: ', trim(adjustl(filename)) // '.png'
         
       end subroutine graficar_ventanillas
     
@@ -790,7 +787,6 @@ module Fase_1
         close(unit)
 
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
-        print *, 'Graphviz file generated Cola impresion pequena: ', trim(adjustl(filename)) // '.png'
 
       end subroutine grafica_impresionP
 
@@ -827,7 +823,6 @@ module Fase_1
         close(unit)
 
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
-        print *, 'Graphviz file generated Cola impresion grande: ', trim(adjustl(filename)) // '.png'
 
       end subroutine grafica_impresionG
 
@@ -922,7 +917,6 @@ module Fase_1
         write(unit, *) '}'
         close(unit)
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
-        print *, 'Graphviz file generated for Lista Espera: ', trim(adjustl(filename)) // '.png'
     end subroutine grafica_lista_espera
 
     subroutine grafica_clientes_atendidos(this, filename)
@@ -962,7 +956,6 @@ module Fase_1
         close(unit)
 
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
-        print *, 'Graphviz file lista atendidos generada: ', trim(adjustl(filename)) // '.png'
     end subroutine grafica_clientes_atendidos
 
 
@@ -1073,8 +1066,7 @@ module Fase_1
 
           temp => this%head
           contador_ejecutar = contador_ejecutar + 1
-          print *, 'CONTADOR' , contador_ejecutar
-        
+          
           ! Desencolar imagen de impresora pequeña
           call desencolar_imp_p(print_tail_p, dataP)
         if(dataP%id_cliente /= -1)then    
@@ -1330,7 +1322,7 @@ module Fase_1
 
           !Variables para generas imagenes y clientes aleatorios
           integer :: num_clientes,num_imgG, num_imgP, index_cliente, id_new, i
-          real :: Rnum_cliente, Rnum_imgG, Rnum_imgP, Rindex_nombreArray
+          real :: Rnum_cliente, Rnum_imgG, Rindex_nombreArray
           character(len= 50), dimension(5) :: nombre_aleatorio
           character(len = 50) :: name_aleatorio
           nombre_aleatorio = ["Robert ", "Alice  ", "Jose   ", "Luis   ", "Pedro  "]
@@ -1359,9 +1351,9 @@ module Fase_1
                 ! Imagenes grandes
                 call random_number(Rnum_imgG)
                 num_imgG = int(Rnum_imgG * 4.0) + 1 ! 1 - 4
-                ! Imagenes pequenas
-                call random_number(Rnum_imgP)
-                num_imgP = int(Rnum_imgP * 4.0) + 1 ! 1 - 4
+                
+                ! Imagenes pequenas   
+                num_imgP = 4 - num_imgG
 
                 ! indexe para obtener un nombre aleatorio de nuestro arreglo nombre_aleatorio
                 call random_number(Rindex_nombreArray) 
@@ -1478,7 +1470,7 @@ module Fase_1
         class(list_finalizados), intent(inout) :: this
         type(Nodo_finalizado), pointer :: current, nextNode
         type(cliente_finalizado) :: temp_data
-        integer :: count ,top_n, fileUnit
+        integer :: count ,top_n, unit
         character (len = *), intent(in) :: filename
         character (len = 200) :: nodolabel, idStr, count_Str, imgG_recividas
 
@@ -1504,10 +1496,10 @@ module Fase_1
             current => current%next
         end do
 
-        open(fileUnit, file= filename, status='replace')
-        write(fileUnit, *) 'digraph Top5ImgG {'
-        write(fileUnit, *) 'rankdir=LR;' 
-        write(fileUnit, *) 'node [shape=box, style=filled, color=black, fillcolor=lightblue]'
+        open(newunit=unit, file=filename, status='replace')
+        write(unit, *) 'digraph Top5ImgG {'
+        write(unit, *) 'rankdir=LR;' 
+        write(unit, *) 'node [shape=box, style=filled, color=black, fillcolor=lightblue]'
 
         current => this%head
         count = 0
@@ -1519,21 +1511,20 @@ module Fase_1
             nodolabel = '"node' // trim(count_Str) // '" [label="Id Cliente: ' // trim(idStr) // &
                     '\n Nombre: '//trim(current%data_finalizado%nombre_cliente) // &
                     '\n img_g_recividas: ' // trim(imgG_recividas) // '"];'
-            write(fileUnit, *) trim(nodolabel)
+            write(unit, *) trim(nodolabel)
 
             ! Si hay un siguiente pero no es el ultimo 
             if (associated(current%next) .and. count < 4) then
-                write(fileUnit, "('  node',i0,' -> node',i0)") count + 1, count + 2
+                write(unit, "('  node',i0,' -> node',i0)") count + 1, count + 2
             end if
             current => current%next
             count = count + 1
         end do
-        write(fileUnit, *) "}"
-        close(fileUnit)
-        
+        write(unit, *) "}"
+        close(unit)
+
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
         print *, 'Graphviz file top5_imgG: ', trim(adjustl(filename)) // '.png'
-
     end subroutine order_img_G
 
 
@@ -1542,7 +1533,7 @@ module Fase_1
         class(list_finalizados), intent(inout) :: this
         type(Nodo_finalizado), pointer :: current, nextNode
         type(cliente_finalizado) :: temp_data
-        integer :: count ,top_n, fileUnit
+        integer :: count ,top_n, unit
         character (len = *), intent(in) :: filename
         character (len = 200) :: nodolabel, idStr, count_Str, imgP_recividas
 
@@ -1568,10 +1559,10 @@ module Fase_1
             current => current%next
         end do
 
-        open(fileUnit, file= filename, status='replace')
-        write(fileUnit, *) 'digraph Top5ImgG {'
-        write(fileUnit, *) 'rankdir=LR;' 
-        write(fileUnit, *) 'node [shape=box, style=filled, color=black, fillcolor=green]'
+        open(newunit=unit, file= filename, status='replace')
+        write(unit, *) 'digraph Top5ImgG {'
+        write(unit, *) 'rankdir=LR;' 
+        write(unit, *) 'node [shape=box, style=filled, color=black, fillcolor=green]'
 
         current => this%head
         count = 0
@@ -1582,69 +1573,117 @@ module Fase_1
 
             nodolabel = '"node' // trim(count_Str) // '" [label="Id Cliente: ' // trim(idStr) // &
                     '\n Nombre: '//trim(current%data_finalizado%nombre_cliente)// &
-                    '\n img_g_recividas: ' // trim(imgP_recividas) // '"];'
-            write(fileUnit, *) trim(nodolabel)
+                    '\n img_p_recividas: ' // trim(imgP_recividas) // '"];'
+            write(unit, *) trim(nodolabel)
 
             ! Si hay un siguiente pero no es el ultimo 
             if (associated(current%next) .and. count < 4) then
-                write(fileUnit, "('  node',i0,' -> node',i0)") count + 1, count + 2
+                write(unit, "('  node',i0,' -> node',i0)") count + 1, count + 2
             end if
             current => current%next
             count = count + 1
         end do
-        write(fileUnit, *) "}"
-        close(fileUnit)
+        write(unit, *) "}"
+        close(unit)
         
         call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
         print *, 'Graphviz file top5_imgP: ', trim(adjustl(filename)) // '.png'
 
     end subroutine order_img_P
 
-    ! Cliente que mas pasos estuvo
+    !Reporte cliente que mas pasos estuvo
     subroutine cliente_con_masPasos(this, filename)
         class(list_finalizados), intent(inout) :: this
-        type(Nodo_finalizado), pointer :: current, cliente_con_mas_pasos
-        integer :: fileUnit
+        type(Nodo_finalizado), pointer :: current, cliente_mayorP
+        integer :: unit
         character(len=*), intent(in) :: filename
-    
+        character (len = 200) :: idStr, totalP_Str, labelnode
         if (.not. associated(this%head)) then
             print *, "La lista está vacía."
             return
         end if
     
         current => this%head
-        cliente_con_mas_pasos => null()
+        cliente_mayorP => null()
         do while(associated(current))
-            if (.not. associated(cliente_con_mas_pasos)) then
-                cliente_con_mas_pasos => current
-            else if (current%data_finalizado%total_pasos > cliente_con_mas_pasos%data_finalizado%total_pasos) then
-                cliente_con_mas_pasos => current
+            if (.not. associated(cliente_mayorP)) then
+                cliente_mayorP => current
+            else if (current%data_finalizado%total_pasos > cliente_mayorP%data_finalizado%total_pasos) then
+                cliente_mayorP => current
             end if
             current => current%next
         end do
     
-        if (.not. associated(cliente_con_mas_pasos)) then
+        if (.not. associated(cliente_mayorP)) then
             print *, "No se encontró un cliente válido."
             return
         end if
     
         ! Abrir archivo para escribir
-        open(newunit=fileUnit, file=filename, status='replace')
-        write(fileUnit, *) 'digraph ClienteConMasPasos {'
-        write(fileUnit, *) 'rankdir=LR;'
-        write(fileUnit, *) 'node [shape=box, style=filled, color="black", fillcolor="lightblue"]'
+        open(newunit=unit, file=filename, status='replace')
+        write(unit, *) 'digraph ClienteConMasPasos {'
+        write(unit, *) 'rankdir=LR;'
+        write(unit, *) 'node [shape=box, style=filled, color="black", fillcolor="lightblue"]'
     
+        write(idStr, '(I0)') cliente_mayorP%data_finalizado%id_cliente
+        write(totalP_Str, '(I0)') cliente_mayorP%data_finalizado%total_pasos
         ! Escribir nodo del cliente con más pasos
-        write(fileUnit, *) '"Cliente" [label="Id Cliente: ', cliente_con_mas_pasos%data_finalizado%id_cliente, &
-                            '\n Nombre: ', trim(cliente_con_mas_pasos%data_finalizado%nombre_cliente), &
-                            '\n Total Pasos: ', cliente_con_mas_pasos%data_finalizado%total_pasos, '"];'
-    
-        write(fileUnit, *) "}"
-        close(fileUnit)
-    
+        labelnode = '"Cliente" [label="Id Cliente: '// trim(idStr) // &
+                            '\n Nombre: '// trim(cliente_mayorP%data_finalizado%nombre_cliente) // &
+                            '\n Total Pasos: '// trim(totalP_Str) // '"];'
+        write(unit, *) trim(labelnode)
+        write(unit, *) "}"
+        close(unit)
+
+        call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
         print *, "Graphviz file: ", trim(filename)
     end subroutine cliente_con_masPasos
     
+    !Reporte de Datps de un cliente
+    subroutine buscarcliente(this, id, filename)
+        type(list_finalizados), intent(inout) :: this
+        integer, intent(in) :: id
+        type(Nodo_finalizado), pointer :: current
+        character (len=*) :: filename
+
+        integer :: unit 
+        character (len = 200) :: idStr, idVentStr, imgG_Str, imgP_Str, totalP_Str, labelNode
+        
+        current => this%head
+
+        open(newunit = unit, file= filename, status='replace')
+        write(unit, *) 'digraph BuscarCliente {'
+        write(unit, *) 'node [shape=record, style=filled, fillcolor=lightblue]'
+
+        do while(associated(current))
+            if (current%data_finalizado%id_cliente == id)then
+                write(idStr, '(I0)') current%data_finalizado%id_cliente
+                write(idVentStr, '(I0)') current%data_finalizado%id_ventanilla
+                write(imgG_Str, '(I0)') current%data_finalizado%img_g_recividas
+                write(imgP_Str, '(I0)') current%data_finalizado%img_p_recividas
+                write(totalP_Str, '(I0)') current%data_finalizado%total_pasos
+                labelNode =  '"Cliente" [label="Id Cliente: '// trim(idStr) // &
+                '\n Ventanilla: '// trim(idVentStr) // &
+                '\n Nombre: ' // trim(current%data_finalizado%nombre_cliente) // &
+                '\n Imagenes Grandes Recibidas: '// trim(imgG_Str) // &
+                '\n Imagenes Pequeñas Recibidas: ' // trim(imgP_Str)//  &
+                '\n Total de Pasos: '// trim(totalP_Str)//'"];'
+                write(unit, *) trim(labelNode)
+                exit
+            end if
+            current => current%next
+        end do
+        write(unit, *) "}"
+        close(unit)
+
+        if (.not. associated(current))then
+            print *, "No se encontró un cliente con el id: ", id
+        else 
+            call system('dot -Tpng ' // trim(filename) // ' -o ' // trim(adjustl(filename)) // '.png')
+            print *, 'Datos de un cliente encontrados exitosamente: ', trim(adjustl(filename)) // '.png'
+        end if
+
+    end subroutine buscarcliente
 
   end module Fase_1
   
@@ -1684,23 +1723,25 @@ program pixel_print_studio
 
     type(cliente_espera) :: dataCliente
 
-    integer :: j, size        ! Se declaran variables enteras
+    integer :: j, size, opcionR, foundClient        ! Se declaran variables enteras
     logical :: found
 
 
     opcion = 0
-    do while (opcion /= -1)
+    do while (opcion /= 7)
       print *, "--------------"
       print *, "Menu principal"
       print *, "--------------"
   
-      print *, "1. cargar Clientes"
-      print *, "2. Estabeces Ventanillas"
-      print *, "3. Procesar asignaciones y mostrar ventanillas"
-      print *, "4. Graficar prueba"
-  
-      print *, "-1 salir"
+      print *, "[1] Cargar Clientes"
+      print *, "[2] Estabecer Ventanillas"
+      print *, "[3] Ejecutar Paso"
+      print *, "[4] Estado en memoria de las estructuras"
+      print *, "[5] Reportes"  
+      print *, "[6] Acerca de"
+      print *, "[7] Salir"
       
+      print *, "-- Ingrese una opcion --"
       read *, opcion !leer la opcion
   
       select case (opcion)
@@ -1762,14 +1803,7 @@ program pixel_print_studio
         end do
         print *, "Ventanillas establecidas"
       case (3)
-        ! Procesar asignaciones y mostrar ventanillas
-        ! Asegurarse de que hay ventanillas y clientes para procesar
         call ejecutar(listVentanillas, reception_tail, listaDeListas, colaImpresion_P, colaImpresion_G, list_atendidos)
-        !call show_ventanilla(listVentanillas)
-        !call show_cliente_espera(listaDeListas)
-        !call show_imp_g(colaImpresion_G)
-        !call show_imp_p(colaImpresion_P)
-        !call show_clientes_atendidos(list_atendidos)
       case (4)
         call grafica_cola_recepcion(reception_tail, "test1.dot")
         call graficar_ventanillas(listVentanillas, "test2.dot")
@@ -1777,28 +1811,36 @@ program pixel_print_studio
         call grafica_impresionG(colaImpresion_G, "test4.dot")
         call grafica_lista_espera(listaDeListas, "test5.dot")
         call grafica_clientes_atendidos(list_atendidos, "test6.dot")
-      case (5) !CASE DE PRUEVA
-        call add_list_f(list_atendidos, cliente_finalizado(1, 2, "Sergio", 2, 2, 10))
-        call add_list_f(list_atendidos, cliente_finalizado(2, 1, "Joel", 4, 3, 11)) ! Cuarto
-        call add_list_f(list_atendidos, cliente_finalizado(3, 2, "Marck", 3, 1, 13)) ! Quinto
-        call add_list_f(list_atendidos, cliente_finalizado(5, 2, "Sebastian", 1, 1, 10))
-        call add_list_f(list_atendidos, cliente_finalizado(4, 1, "Zucerbein", 3, 4, 22))
-        call add_list_f(list_atendidos, cliente_finalizado(6, 1, "Juan", 1, 1, 5))
-        call add_list_f(list_atendidos, cliente_finalizado(7, 1, "Pedro", 7, 6, 5)) ! Tercero
-        call add_list_f(list_atendidos, cliente_finalizado(8, 1, "Saul", 9, 5, 22))  ! Primero
-        call add_list_f(list_atendidos, cliente_finalizado(9, 1, "Carlos", 8, 1, 10)) ! Segundo
-        call add_list_f(list_atendidos, cliente_finalizado(10, 1, "Bruno", 1, 7, 7))
-        call show_clientes_atendidos(list_atendidos)
+        print *, "ESTADO DE MEMORIA ACTUAL ESTABLECIDO CORRECTAMENTE"
+      case (5)
+        opcionR = 0
+        do while(opcionR /= 5)
+        print *, "1 >> Top 5 Clientes con mayor cantidad de imagenes grandes"
+        print *, "2 >> Top 5 Clientes con mayor cantidad de imagenes pequenas"
+        print *, "3 >> Informacion del Cliente que mas pasos estuvo en el sistema"
+        print *, "4 >> Datos de un cliente"
+        print *, "5 >> Volver al menu"
+        print *, ">>>>> Ingrese una opcion <<<<<"
+        read *, opcionR
+        select case(opcionR)
+        case (1)
+            call order_img_G(list_atendidos, "top5imgG.dot")
+        case (2)
+            call order_img_P(list_atendidos, "top5imgP.dot")
+        case (3)
+            call cliente_con_masPasos(list_atendidos, "clienteConMasPasos.dot")
+        case (4)
+            foundClient = 0
+            print *, "Ingrese el Id del cliente a buscar"
+            read *, foundClient
+            call buscarcliente(list_atendidos, foundClient, "datosCliente.dot")
+        end select
+        end do
       case (6)
-        !call delete_cliente_en_espera(listaDeListas, 4)
-        !call show_cliente_espera(listaDeListas)
-
-      case (7)
-        call order_img_G(list_atendidos, "top5imgG.dot")
-      case (8)
-        call order_img_P(list_atendidos, "top5imgP.dot")
-      case (9)
-        call cliente_con_masPasos(list_atendidos, "clienteConMasPasos.dot")
+        print *, "--- DATOS DEL ESTUDIANTE ---"
+        print *, "Sergio Joel Rodas Valdez"
+        print *, "Carne: 202200271"
+        print *, "Seccion C"
       end select
     end do  
 
