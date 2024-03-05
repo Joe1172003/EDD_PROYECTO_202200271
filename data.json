@@ -1,64 +1,62 @@
 [
-    {
-      "id": 1,
-      "nombre": "Sergio",
-      "img_p": 2, 
-      "img_g": 2
-    },
-    {
-      "id": 2,
-      "nombre": "Joel",
-      "img_p": 3,
-      "img_g": 1
-    },
-    {
-      "id": 3,
-      "nombre": "Marck",
-      "img_p": 1,
-      "img_g": 3
-    },
-    {
-      "id": 4,
-      "nombre": "Zucerbein",
-      "img_p": 3,
-      "img_g": 4
-    },
-    {
-      "id": 5,
-      "nombre": "Sebastian",
-      "img_p": 1,
-      "img_g": 1
-    }, 
-    {
-      "id": 6,
-      "nombre": "Alejandro",
-      "img_p": 1,
-      "img_g": 2
-    },
-    {
-      "id": 7,
-      "nombre": "Antonio",
-      "img_p": 3,
-      "img_g": 1
-    },
-    {
-      "id": 8,
-      "nombre": "Federico",
-      "img_p": 2,
-      "img_g": 3
-    },
-    {
-      "id": 9,
-      "nombre": "Samuel",
-      "img_p": 1,
-      "img_g": 2
-    },
-    {
-      "id": 10,
-      "nombre": "Andrea",
-      "img_p": 3,
-      "img_g": 3
-    }
-
+  {
+    "nombre": "Juan Perez",
+    "id": 1,
+    "img_g": 1,
+    "img_p": 3
+  },
+  {
+    "nombre": "Maria Garcia",
+    "id": 2,
+    "img_g": 2,
+    "img_p": 2
+  },
+  {
+    "nombre": "Carlos Lopez",
+    "id": 3,
+    "img_g": 1,
+    "img_p": 1
+  },
+  {
+    "nombre": "Laura Rodriguez",
+    "id": 4,
+    "img_g": 1,
+    "img_p": 3
+  },
+  {
+    "nombre": "Pedro Sanchez",
+    "id": 5,
+    "img_g": 2,
+    "img_p": 2
+  },
+  {
+    "nombre": "Ana Martinez",
+    "id": 6,
+    "img_g": 1,
+    "img_p": 1
+  },
+  {
+    "nombre": "Diego Fernandez",
+    "id": 7,
+    "img_g": 3,
+    "img_p": 1
+  },
+  {
+    "nombre": "Sofia Ramirez",
+    "id": 8,
+    "img_g": 2,
+    "img_p": 2
+  },
+  {
+    "nombre": "Elena Gonzalez",
+    "id": 9,
+    "img_g": 1,
+    "img_p": 1
+  },
+  {
+    "nombre": "Antonio Jimenez",
+    "id": 10,
+    "img_g": 1,
+    "img_p": 3
+  }
 ]
-

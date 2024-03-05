@@ -834,7 +834,7 @@ module Fase_1
         
         integer :: unit
         integer :: nodeCount, subNodeCount
-        
+
         character(len=*), intent(in) :: filename
         character(len=200) :: edgeLabel
 
@@ -866,13 +866,18 @@ module Fase_1
             write(unit, *) trim(nodeLabel)
 
             !Graficar subnodos
+
             currentSubNode => currentNode%list_img_a
             subNodeCount = 0
+            write(unit ,*) '{'
+            write(unit, *) 'rank=same;'
             do while(associated(currentSubNode))
                 write(nodeCountStr, '(i0)') nodeCount
                 write(subNodeCountStr, '(i0)') subNodeCount
                 write(idClienteA_Str, '(i0)') currentSubNode%img_data_a%id_cliente_a
-
+                write(unit, *) '"subNode' // trim(nodeCountStr) // '_' // &
+                trim(subNodeCountStr) // '" [shape=box, style=filled, color=black, fillcolor=lightblue]'
+                
                 subNodeLabel = '"subNode' // trim(nodeCountStr) // '_' // trim(subNodeCountStr) // &
                 '" [label="Id Cliente : ' // trim(idClienteA_Str) // '\n Tipo Img : ' // &
                 trim(currentSubNode%img_data_a%tipo_img_a) // '"]'
@@ -881,7 +886,7 @@ module Fase_1
 
                 ! Conectar el primer subnodo con el nodo cliente respectivo
                 if (subNodeCount == 0) then
-                    write(unit, "('node',i0,':n -> subNode',i0,'_',i0,' [style=solid]') ") &
+                    write(unit, "('node',i0,' -> subNode',i0,'_',i0,' [style=solid]') ") &
                     nodeCount, nodeCount, subNodeCount
                 end if
                 
@@ -894,11 +899,14 @@ module Fase_1
                 currentSubNode => currentSubNode%next
                 subNodeCount = subNodeCount + 1
             end do
+            write(unit, *) '}'
+
+            write(unit, *) 'node [shape=box, style=filled, color=black, fillcolor=palegreen]'
 
             ! Conectar con el siguiente nodo principal si existe
             if ((associated(currentNode%next)) .and. (.not. associated(currentNode%next, this%head))) then
                 write(unit, "('node',i0,' -> node',i0) ") nodeCount, nodeCount+1
-                write(unit, "('node',i0,' -> node',i0,' [constraint=false, style=dotted]') ") &
+                write(unit, "('node',i0,' -> node',i0) ") &
                 nodeCount+1, nodeCount  ! Para enlace prev
             end if
 
@@ -925,8 +933,9 @@ module Fase_1
         character (len = *) :: filename
         integer :: unit, count
         character (len = 200) :: idCliente_Str, idVentanilla_Str, totalPasos_Str, count_Str 
-        character (len = 200) :: imgG_recividas_Str, imgP_recividas_Str, nodeLabel
+        character (len = 200) :: imgG_recividas_Str, imgP_recividas_Str, nodeLabel, imgRecividas
 
+        integer :: imagenes_recibidas
         open(newunit = unit, file = filename, status='replace')
         write(unit, *) 'digraph lista_clientes_atendidos {'
         write(unit, *) 'rankdir=LR;'
@@ -934,16 +943,20 @@ module Fase_1
 
         current => this%head
         do while(associated(current))
+            imagenes_recibidas = 0
+            imagenes_recibidas = current%data_finalizado%img_g_recividas + current%data_finalizado%img_p_recividas
             write(idCliente_Str, '(i0)') current%data_finalizado%id_cliente
             write(idVentanilla_Str, '(i0)') current%data_finalizado%id_ventanilla
             write(totalPasos_Str, '(i0)') current%data_finalizado%total_pasos
             write(imgG_recividas_Str, '(i0)') current%data_finalizado%img_g_recividas
             write(imgP_recividas_Str, '(i0)') current%data_finalizado%img_p_recividas
+            write(imgRecividas, '(i0)') imagenes_recibidas
             write(count_Str, '(i0)') count
             nodeLabel = '"node' // trim(count_Str)//'"'//'[label="Id_cliente: '// &
             trim(idCliente_Str)// '\n Nombre: '//trim(current%data_finalizado%nombre_cliente) // &
             '\n id_ventanilla: '// trim(idVentanilla_Str) //'\n Img_g: '//trim(imgG_recividas_Str)// &
-            '\n Img_p: '//trim(imgP_recividas_Str) // '\n totalPasos: '//trim(totalPasos_Str)//'"]'
+            '\n Img_p: '//trim(imgP_recividas_Str) // '\n Imagenes Recibidas: '//trim(imgRecividas)// &
+            '\n totalPasos: '//trim(totalPasos_Str)//'"]'
 
             write(unit, *) nodeLabel
             if(associated(current%next))then
@@ -1549,7 +1562,7 @@ module Fase_1
         do while(associated(current))
             nextNode => current
             do while(associated(nextNode))
-                if (current%data_finalizado%img_p_recividas < nextNode%data_finalizado%img_p_recividas) then
+                if (current%data_finalizado%img_p_recividas > nextNode%data_finalizado%img_p_recividas) then
                     temp_data = current%data_finalizado
                     current%data_finalizado = nextNode%data_finalizado
                     nextNode%data_finalizado = temp_data
@@ -1597,7 +1610,7 @@ module Fase_1
         type(Nodo_finalizado), pointer :: current, cliente_mayorP
         integer :: unit
         character(len=*), intent(in) :: filename
-        character (len = 200) :: idStr, totalP_Str, labelnode
+        character (len = 200) :: idStr, totalP_Str, labelnode, imgG_recividas, imgP_recividas
         if (.not. associated(this%head)) then
             print *, "La lista está vacía."
             return
@@ -1627,9 +1640,13 @@ module Fase_1
     
         write(idStr, '(I0)') cliente_mayorP%data_finalizado%id_cliente
         write(totalP_Str, '(I0)') cliente_mayorP%data_finalizado%total_pasos
+        write(imgG_recividas, '(I0)') cliente_mayorP%data_finalizado%img_g_recividas
+        write(imgP_recividas, '(I0)') cliente_mayorP%data_finalizado%img_p_recividas
         ! Escribir nodo del cliente con más pasos
         labelnode = '"Cliente" [label="Id Cliente: '// trim(idStr) // &
                             '\n Nombre: '// trim(cliente_mayorP%data_finalizado%nombre_cliente) // &
+                            '\n Imagenes G recividas: '// trim(imgG_recividas) // &
+                            '\n Imagenes P recividas: '//trim(imgP_recividas) // &
                             '\n Total Pasos: '// trim(totalP_Str) // '"];'
         write(unit, *) trim(labelnode)
         write(unit, *) "}"
@@ -1816,7 +1833,7 @@ program pixel_print_studio
         opcionR = 0
         do while(opcionR /= 5)
         print *, "1 >> Top 5 Clientes con mayor cantidad de imagenes grandes"
-        print *, "2 >> Top 5 Clientes con mayor cantidad de imagenes pequenas"
+        print *, "2 >> Top 5 Clientes con menor cantidad de imagenes pequenas"
         print *, "3 >> Informacion del Cliente que mas pasos estuvo en el sistema"
         print *, "4 >> Datos de un cliente"
         print *, "5 >> Volver al menu"
