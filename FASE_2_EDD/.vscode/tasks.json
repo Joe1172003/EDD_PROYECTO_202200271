@@ -1,0 +1,40 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compilar Fortran con JSON-Fortran",
+            "type": "shell",
+            "command": "gfortran",
+            "args": [
+                "-g", // Agrega información de depuración.
+                "-I", // Ruta a los archivos de encabezado.
+                "C:\\Users\\Aitan\\OneDrive\\Escritorio\\MatrisDispersa\\include",
+                "-L", // Ruta a la carpeta de la librería.
+                "C:\\Users\\Aitan\\OneDrive\\Escritorio\\MatrisDispersa\\lib",
+                "-ljsonfortran", // Enlaza con la librería jsonfortran.
+                "-J", // Ruta para los módulos de Fortran compilados.
+                "C:\\Users\\Aitan\\OneDrive\\Escritorio\\MatrisDispersa\\include",
+                "-o", // Especifica el nombre del archivo de salida.
+                "C:\\Users\\Aitan\\OneDrive\\Escritorio\\MatrisDispersa\\sparceMatrix.exe", // El archivo ejecutable que se generará.
+                "C:\\Users\\Aitan\\OneDrive\\Escritorio\\MatrisDispersa\\sparceMatrix.f90" // El archivo fuente a compilar.
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }
+    ]
+}

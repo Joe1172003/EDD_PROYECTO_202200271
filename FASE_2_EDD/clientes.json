@@ -1,0 +1,98 @@
+[
+    {
+        "dpi": "501256320101",
+        "nombre_cliente": "joe5",
+        "password": "123"
+    },
+    {   
+        "dpi": "752345230101",
+        "nombre_cliente": "joe7",
+        "password": "456"
+    },
+    {
+        "dpi": "405647890101",
+        "nombre_cliente": "joe4",
+        "password": "456"
+    },
+    {
+        "dpi": "12056124570101",
+        "nombre_cliente": "joe12",
+        "password": "123"
+    },
+    {
+        "dpi": "23056124570101",
+        "nombre_cliente": "joe23",
+        "password": "456"
+    },
+    {
+        "dpi": "605678900101",
+        "nombre_cliente": "joe6",
+        "password": "456"
+    },
+    {
+        "dpi": "805678900101",
+        "nombre_cliente": "joe8",
+        "password": "123"
+    },
+    {
+        "dpi": "105678900101",
+        "nombre_cliente": "joe1",
+        "password": "456"
+    },
+    {
+        "dpi": "10056124570101",
+        "nombre_cliente": "joe10",
+        "password": "456"
+    },
+    {
+        "dpi": "25056124570101",
+        "nombre_cliente": "joe25",
+        "password": "123"
+    },
+    {
+        "dpi": "40056124570101",
+        "nombre_cliente": "joe40",
+        "password": "456"
+    },
+    {
+        "dpi": "35056124570101",
+        "nombre_cliente": "joe35",
+        "password": "456"
+    },
+    {
+        "dpi": "28056124570101",
+        "nombre_cliente": "joe28",
+        "password": "456"
+    },
+    {
+        "dpi": "22056124570101",
+        "nombre_cliente": "joe22",
+        "password": "456"
+    },
+    {
+        "dpi": "15056124570101",
+        "nombre_cliente": "joe15",
+        "password": "456"
+    },
+    {
+        "dpi": "20056124570101",
+        "nombre_cliente": "joe20",
+        "password": "456"
+    },
+    {
+        "dpi": "205678900101", 
+        "nombre_cliente": "joe2",
+        "password": "456"
+    },
+    {
+        "dpi": "41056124570101",
+        "nombre_cliente": "joe41",
+        "password": "456"
+    },
+    {
+        "dpi": "37056124570101",
+        "nombre_cliente": "joe37",
+        "password": "456"
+    }
+    
+]
