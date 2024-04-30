@@ -1,0 +1,83 @@
+[
+    {
+        "dpi": "7000000000000",
+        "nombre": "Sergio-7",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "1400000000000",
+        "nombre": "Sergio-14",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "2100000000000",
+        "nombre": "Sergio-21",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "3759082930101",
+        "nombre": "Sergio-37",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "3858231321332",
+        "nombre": "Sergio-38",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "2156462133213",
+        "nombre": "Sergio-21",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "2856495132654",
+        "nombre": "Sergio-28",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "5321654623213",
+        "nombre": "Sergio-53",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "5135498763565",
+        "nombre": "Sergio-51",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    },
+    {
+        "dpi": "1546893212323",
+        "nombre": "Sergio-15",
+        "apellido": "Rodas",
+        "genero": "Masculino",
+        "direccion": "1234 Main St",
+        "telefono": 123456
+    }
+    
+]

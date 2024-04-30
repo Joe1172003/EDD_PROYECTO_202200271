@@ -1,0 +1,71 @@
+[
+    {
+        "id":8,
+        "departamento": "Guatemala",
+        "direccion": "Ciudad Guatemala",
+        "password": "123"
+    },
+    {
+        "id":5,
+        "departamento": "Huehutenado",
+        "direccion": "Zona 5",
+        "password": "123"
+    },
+    {
+        "id":4,
+        "departamento": "San Marcos",
+        "direccion": "Zona 4",
+        "password": "suc4_123"
+    },
+    {
+        "id":6,
+        "departamento": "Jalapa",
+        "direccion": "Zona 6",
+        "password": "suc6_123"
+    },
+    {
+        "id":10,
+        "departamento": "Zacapa",
+        "direccion": "Zona 10",
+        "password": "suc10_123"
+    },
+    {
+        "id":9,
+        "departamento": "Santa Rosa",
+        "direccion": "Zona 9",
+        "password": "suc9_123"
+    },
+    {
+        "id":7,
+        "departamento": "Baja Verapaz",
+        "direccion": "Zona 7",
+        "password": "suc7_123"
+    },
+    {
+        "id":3,
+        "departamento": "Alta Verapaz",
+        "direccion": "Zona 3",
+        "password": "suc3_123"
+    },
+    {
+        "id":2,
+        "departamento": "Totonicapan",
+        "direccion": "Zona 2",
+        "password": "suc2_123"
+    },
+    {
+        "id":1,
+        "departamento": "Preuba",
+        "direccion": "Zona 2",
+        "password": "123"
+    },
+    {
+        "id":11,
+        "departamento": "Chimaltenago",
+        "direccion": "Zona 1",
+        "password": "suc1_123"
+    }
+
+]
+
+
