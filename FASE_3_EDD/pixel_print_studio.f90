@@ -1,7 +1,19 @@
 module pixel_print_studio
+    
+    use iso_c_binding
+    use json_module 
+
     implicit none
 
+    !VARIABLES GLOBALES
     integer :: uid = 1
+    integer :: index_dataBlock
+    logical :: is_first_previusHash = .false. !BANDERA PARA DETERMINAR SI ES EL PRIMER DATA BLOCK
+    character(len=:), allocatable :: previus_hash
+    character(len=:), allocatable :: last_hash_dataBloke
+    integer :: costos_totales = 0!costos totales para la empresa
+    integer :: ingresos_extras_totales = 0
+    integer :: ganancias_totales = 0 !ganancias totales para la empresa
 
     ! Hash table structure
     type techinical
@@ -35,19 +47,25 @@ module pixel_print_studio
     ! end Has table structure
 
 
+    !:::: ESTRUCTURA LISTA SIMPLE PARA AGUARDAR TODOS LOS TECNICOS
     type node_techinical
         integer*8 :: dpi
         character(len=32) :: name
         character(len=32) :: last_name
         integer :: jobs_done = 0
-        type(node_techinical), pointer :: next_techincal
+        type(node_techinical), pointer :: next_techincal => null()
     end type node_techinical
 
     type all_techinical
-        type(node_techinical), pointer :: head_techincal
+        type(node_techinical), pointer :: head_techincal => nulL()
         contains
-            procedure :: add_tencial
+            procedure :: add_techical      ! AÑADIR TENCI A LA LISTA
+            procedure :: find_one_techical ! BUSCAR UN TECNICO SI LO ENCUETRA SUMARLE 1 A JOBS DONE
+            procedure :: bublle_sort_tech !ORDENAR POR NUMERO DE TRABAJOS REALIZADOS
+            procedure :: top_5_tech !MOSTRAR 5 TECNICOS CON MAYOR NUMERO DE TRABAJOS REALIZADOS
+            procedure :: show_all_technicians !MOSTRAR TODOS LOS TECNICOS
     end type all_techinical
+    !:::::: END ESTRUCTURA PARA AGUARDAR TODOS LOS TECNICOS
 
     ! Sucursal Estructure
     type node_sucursal
@@ -67,8 +85,28 @@ module pixel_print_studio
             procedure :: search_node_bst
             procedure :: inorderTraversal
             procedure :: search_node_bst_id !buscar una sucursal por id 
+            procedure :: write_bst_to_json
     end type
 
+    !Lista simple para capturar los valores del arbol bst
+    type node_list_sucursal
+        integer :: id_sucursal
+        character(len=32) :: departament
+        character(len=32) :: direccion
+        integer :: request_jobs = 0
+        type(node_list_sucursal), pointer :: next_suc => null()
+    end type node_list_sucursal
+
+    type list_sucursales
+        type(node_list_sucursal), pointer :: head_list => null()
+        contains
+            procedure :: add_node_list_suc 
+            procedure :: find_one_list_sucursal
+            procedure :: bublle_sort_list_suc
+            procedure :: top_5_sucusales
+            procedure :: show_all_list_sucursales
+    end type list_sucursales
+    
     !::::::: Estrcutura del grafo ( lista de adyacencia )
     ! arista 
     type arista
@@ -164,19 +202,53 @@ module pixel_print_studio
             procedure :: create_tree_merkle ! creo arbol merkle 
             procedure :: genhash !generar hash
             procedure :: datablok !obtengo los nodos hojas
-            procedure :: xor8
             procedure :: showhash
             procedure :: show_dataBlock
             procedure :: generate
             procedure :: dot_tree_merkle
-            procedure :: grap_Tree_merkle
+            procedure :: grap_Tree_merkle !graficar mi arbol merkle
+            procedure :: get_root_hash
     end type tree_merkle
+    !:::: end Estructura del arbol Merkle
 
+    !:::: Estructuras BLOCK CHAIN
+    type data 
+        character(len=10) :: id_sucursal_o
+        character(len=200) :: direccion_suc_o
+        character(len=10) :: id_sucursal_d
+        character(len=200) :: direccion_suc_d
+        character(len=50) :: costo_suc 
+        type(data), pointer :: next_data => null()
+    end type data
 
-    
+    type all_data
+        type(data), pointer :: head_data => null()
+        contains
+            procedure :: add_data
+    end type
 
+    type node_DataBlock
+        integer :: index
+        character(len=30) :: timestamp
+        type(all_data) :: datablock
+        character(len=20) :: nonce
+        character(len=:), allocatable :: previus_hash
+        character(len=:), allocatable :: root_merkle
+        character(len=:), allocatable :: hash
+        type(node_DataBlock), pointer :: next_DataBlock => null()
+    end type node_DataBlock
+
+    type block_chain
+        type(node_DataBlock), pointer :: head_dataBlock => null()
+        contains 
+            procedure :: add_block !AÑADIR BLOCK CHAIN
+            procedure :: show_block_chain
+            procedure :: grap_block_chain !GRAFICAR BLOCK CHAIN
+    end type block_chain
 
     contains
+
+    !FUNCIONES Y SUBRUTINAS PARA EL ARBOL DE MERKLE
 
     !Añadir un nodo hoja al arbol Merkle
     subroutine add(this, value)
@@ -252,30 +324,14 @@ module pixel_print_studio
                     node%dataref => this%datablok(temp)
                     this%pos = this%pos - 1
                     hash = node%dataref%value
-                    node%hash = this%xor8(hash)
+                    node%hash = sha256(hash) !convertir a SHA256 la data
                 else
                     hash = adjustl(node%left%hash(1:len(node%left%hash)/2))// &
                     adjustl(node%right%hash(1:len(node%right%hash)/2))
-                    node%hash = this%xor8(hash)
+                    node%hash = sha256(hash) !convertir a SHA256 la data
                 end if
             end if
     end subroutine genhash
-
-    function xor8(this, str) result(hash)
-        class(tree_merkle), intent(inout) :: this
-        character(len=:), allocatable, intent(in) :: str
-        character(len=8), allocatable :: hash
-        integer :: i, resultbyte
-        character(len=2) :: hexbyte
-        integer :: ascii_code
-        hash = "00000000"
-        do i=1, len(str)
-            ascii_code = ichar(str(i:i))
-            resultbyte = ieor(ascii_code, 8) 
-            write(hexbyte, '(Z2)') resultbyte
-            hash = trim(hexbyte)//trim(hash) 
-        end do
-    end function xor8
 
     !Obtener el tamaño de mi lista (Nodos Hojas)
     function size_list(this) result(res)
@@ -291,15 +347,15 @@ module pixel_print_studio
     end function size_list 
 
     !obtiene el datablock 
-    function datablok(this, pos) result(left_node)
+    function datablok(this, pos) result(leaf_node) 
         class(tree_merkle), intent(inout) :: this
         integer, intent(inout) :: pos
-        type(node_dataBloken), pointer :: left_node
-        left_node => this%data_head
-        do while(associated(left_node))
+        type(node_dataBloken), pointer :: leaf_node ! nodo hoja
+        leaf_node => this%data_head
+        do while(associated(leaf_node))
             if(pos == 0) return
             pos = pos - 1 
-            left_node => left_node%next
+            leaf_node => leaf_node%next
         end do
     end function datablok
 
@@ -307,6 +363,7 @@ module pixel_print_studio
         class(tree_merkle), intent(inout) :: this
         integer :: io, iostat, exitstat
         character(len=100) :: dot_command
+        character(len=200) :: command
 
         open(newunit=io, file="merkle_tree.dot", status='replace', action='write', iostat=iostat)
         
@@ -324,6 +381,9 @@ module pixel_print_studio
         dot_command = 'dot -Tpng merkle_tree.dot -o merkle_tree.png'
         call execute_command_line(dot_command, exitstat=exitstat)
 
+        command = 'start '//'merkle_tree'//'.png'
+        call system(command)
+
         if (exitstat == 0) then
             print *, "El árbol de Merkle fue generado exitosamente en 'merkle_tree.png'."
         else
@@ -336,9 +396,12 @@ module pixel_print_studio
         class(tree_merkle), intent(inout) :: this
         type(hash_node), intent(in), pointer :: current
         integer, intent(in) :: unit 
+        character(len=32) :: short_hash 
+
         if(.not. associated(current)) return
-        write(unit, '(A, I5, A, A, A)')' ', current%uid, '[label="', current%hash, '"];' !top hash
-        
+        short_hash = current%hash(1:32) ! Mostrar la mitad del hash 32 caracteres
+        write(unit, '(A, I5, A, A, A)')' ', current%uid, '[label="', short_hash, '" shape=box];' !top hash
+
         if(associated(current%left))then
             write (unit, '(A,I5,A,I5,A)') ' ', current%uid, ' -- ', current%left%uid, ';'
         end if
@@ -355,6 +418,18 @@ module pixel_print_studio
             write (unit, '(A, I5, A, I5, A)') ' ', current%uid, ' -- ', current%dataref%uid, ';'
         end if
     end subroutine dot_tree_merkle
+
+    function get_root_hash(this) result (root_hash)
+        class(tree_merkle), intent(in) :: this
+        character(len=:), allocatable :: root_hash
+
+        if(associated(this%tophash))then
+            root_hash = this%tophash%hash
+        else
+            root_hash = "" !NO EXISTE ROOT HASH
+        end if
+    end function get_root_hash
+
 
     subroutine show_dataBlock(this)
         class(tree_merkle), intent(inout) :: this
@@ -382,7 +457,176 @@ module pixel_print_studio
         end if
     end subroutine showhash
 
+    !:::: END FUNCIONES Y SUBRUTINAS PARA EL ARBOL DE MERKLE
 
+    !:::: FUNCIONES Y SUBRUTINAS PARA BLOCK CHAIN
+
+    !Subrutina insertar data en DATABLOCK
+    subroutine add_data(this, id_suc_o, direccion_suc_o, id_suc_d, direccion_suc_d, costo_suc)
+        class(all_data), intent(inout) :: this
+        character(len=*), intent(in) :: id_suc_o, direccion_suc_o, id_suc_d, direccion_suc_d, costo_suc
+        type(data), pointer :: new_data, current_data
+
+        allocate(new_data)
+        new_data%id_sucursal_o = id_suc_o
+        new_data%direccion_suc_o = direccion_suc_o
+        new_data%id_sucursal_d = id_suc_d
+        new_data%direccion_suc_d = direccion_suc_d
+        new_data%costo_suc = costo_suc
+        new_data%next_data => null()
+
+        if(.not. associated(this%head_data))then
+            this%head_data => new_data
+        else
+            current_data => this%head_data
+            do while(associated(current_data%next_data))
+                current_data => current_data%next_data
+            end do
+            current_data%next_data => new_data
+        end if
+    end subroutine add_data
+
+
+    !Subrutina insertar un bloque
+    subroutine add_block(this, index, times_tamp, datablock, nonce, previus_hash, root_merkle, hash)
+        class(block_chain), intent(inout) :: this
+        integer, intent(in) :: index
+        type(all_data), intent(in) :: datablock
+        character(len=30), intent(in) :: times_tamp
+        character(len=20), intent(in) :: nonce 
+        character(len=:), intent(in) ,allocatable :: previus_hash, root_merkle, hash
+        type(node_DataBlock), pointer :: current_block, new_block
+
+        allocate(new_block)
+        new_block%index = index
+        new_block%timestamp = times_tamp
+        new_block%datablock = datablock
+        new_block%nonce = nonce
+        new_block%previus_hash = previus_hash
+        new_block%root_merkle = root_merkle
+        new_block%hash = hash
+        new_block%next_DataBlock => null()
+
+        if(.not. associated(this%head_dataBlock))then
+            this%head_dataBlock => new_block
+        else
+            current_block => this%head_dataBlock
+            do while(associated(current_block%next_DataBlock))
+                current_block => current_block%next_DataBlock
+            end do
+            current_block%next_DataBlock => new_block
+        end if
+    end subroutine add_block
+
+    subroutine show_block_chain(this)
+        class(block_chain), intent(in) :: this
+        type(node_DataBlock), pointer :: current_block
+        type(data), pointer :: current_data
+    
+        current_block => this%head_dataBlock
+        if (.not. associated(current_block)) then
+            print *, "The blockchain is empty."
+            return
+        end if
+    
+        do while(associated(current_block))
+            print *, "Block Index:", current_block%index
+            print *, "Timestamp:", trim(current_block%timestamp)
+            print *, "Nonce:", trim(current_block%nonce)
+            print *, "Previous Hash:", trim(current_block%previus_hash)
+            print *, "Root Merkle:", trim(current_block%root_merkle)
+            print *, "Hash:", trim(current_block%hash)
+            print *, "Data in this block:"
+    
+            current_data => current_block%datablock%head_data
+            if (.not. associated(current_data)) then
+                print *, "  No data to display for this block."
+            else
+                do while(associated(current_data))
+                    print *, "  - Sucursal Origen ID:", trim(current_data%id_sucursal_o)
+                    print *, "  - Direccion Origen:", trim(current_data%direccion_suc_o)
+                    print *, "  - Sucursal Destino ID:", trim(current_data%id_sucursal_d)
+                    print *, "  - Direccion Destino:", trim(current_data%direccion_suc_d)
+                    print *, "  - Costo:", trim(current_data%costo_suc)
+                    current_data => current_data%next_data
+                    if (associated(current_data)) print *, "  ----------------"
+                end do
+            end if
+    
+            current_block => current_block%next_DataBlock
+            print *, "--------------------------------------------------------"
+        end do
+    end subroutine show_block_chain
+
+    !Subrutina para mostrar la grafica del Block chain
+    subroutine grap_block_chain(this)
+        class(block_chain), intent(in) :: this
+        type(node_DataBlock), pointer :: current_block
+        type(data), pointer :: current_data
+        character(len=100) :: dot_command
+        integer :: unit, ios, exitstat
+        character(len=200) :: command
+
+        open(newunit=unit, file="block_chain.dot", status='replace', action='write', iostat=ios)
+            
+        if(ios /= 0) then
+            print *, "Error al abrir el archivo"
+            return
+        end if
+
+        write(unit, *) 'digraph G {'
+        write(unit, *) 'node [shape=plaintext, fontname="Arial", fontsize=10];'
+        
+        current_block => this%head_dataBlock
+        do while(associated(current_block))
+            write(unit, '(A, I0, A)') '    block', current_block%index, ' [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0">'
+            write(unit, *) '<TR><TD COLSPAN="2" BGCOLOR="lightgrey"><B>INDEX ', current_block%index, '</B></TD></TR>'
+            write(unit, *) '<TR><TD>TIMESTAMP</TD><TD>', trim(current_block%timestamp), '</TD></TR>' 
+            write(unit, *) '<TR><TD>NONCE</TD><TD>', trim(current_block%nonce), '</TD></TR>'
+            write(unit, *) '<TR><TD>PREVIUS HASH</TD><TD>', trim(current_block%previus_hash), '</TD></TR>' 
+            write(unit, *) '<TR><TD>ROOT MERKLE</TD><TD>', trim(current_block%root_merkle), '</TD></TR>' 
+            write(unit, *) '<TR><TD>HASH</TD><TD>', trim(current_block%hash), '</TD></TR>'
+            write(unit, *) '<TR><TD COLSPAN="2" BGCOLOR="lightblue">DATA</TD></TR>'
+
+            current_data => current_block%datablock%head_data
+            do while(associated(current_data))
+                write(unit, *) '<TR><TD>ID SUCURSAL ORIGEN</TD><TD>', trim(current_data%id_sucursal_o), '</TD></TR>'
+                write(unit, *) '<TR><TD>DIRECCION SUCURSAL ORIGEN</TD><TD>', trim(current_data%direccion_suc_o), '</TD></TR>'
+                write(unit, *) '<TR><TD>ID SUCURSAL DESTINO</TD><TD>', trim(current_data%id_sucursal_d), '</TD></TR>'
+                write(unit, *) '<TR><TD>DIRECCION SUCURSAL DESTINO</TD><TD>', trim(current_data%direccion_suc_d), '</TD></TR>'
+                write(unit, *) '<TR><TD>COSTO</TD><TD>', trim(current_data%costo_suc), '</TD></TR>'
+                current_data => current_data%next_data
+                if (associated(current_data)) write(unit, *) '<TR><TD COLSPAN="2" BGCOLOR="silver"></TD></TR>'
+            end do
+        
+            write(unit, *) '</TABLE>>];'
+
+            if(associated(current_block%next_DataBlock)) then
+                write(unit, '(A, I0, A, I0, A)') '    block', &
+                current_block%index, ' -> block', current_block%next_DataBlock%index, ';'
+            end if
+
+            current_block => current_block%next_DataBlock
+        end do
+
+        write(unit, *) '}'
+        close(unit)
+
+        dot_command = 'dot -Tpng block_chain.dot -o block_chain.png'
+        call execute_command_line(dot_command, exitstat=exitstat)
+
+        command = 'start ' // 'block_chain' // '.png'
+        call system(command)
+
+        if (exitstat == 0) then
+            print *, ":. La grafica del block_chain fue generado correctamente .:"
+        else
+            print *, "Error al generar el archivo PNG."
+        end if
+
+    end subroutine grap_block_chain
+    
+    !:::: END FUNCIONES Y SUBRUTINAS PARA BLOCK CHAIN
 
 
      ! Buscar una sucursal por id
@@ -556,7 +800,7 @@ module pixel_print_studio
         type(arista), pointer :: new_ari, temp
 
         vertex_ori => ObtenerVertice(this, ori_name)
-        vertex_dest => ObtenerVertice(this, dest_name)
+        vertex_dest => ObtenerVertice(this, dest_name) ! retorna un 
 
         if(.not. associated(vertex_ori))then
             print *, "No existe el vertice origen"
@@ -615,6 +859,7 @@ module pixel_print_studio
         type(vertice), pointer :: i
         type(arista), pointer :: j
         integer :: io, iostat, vertice_count
+        character(len=200) :: command
         
         ! Abrir archivo para escribir el grafo en formato DOT
         open(newunit=io, file='grafo.dot', status='replace', action='write', iostat=iostat)
@@ -667,6 +912,9 @@ module pixel_print_studio
     
         ! Ejecutar Graphviz para convertir el archivo DOT en una imagen PNG
         call execute_command_line('dot -Tpng grafo.dot -o grafo.png', exitstat=iostat)
+        command = 'start '// 'grafo'//'.png' !Abrir la imagen automaticamente
+        call system(command)
+
         if (iostat == 0) then
             print *, "Imagen del grafo creada con éxito en 'grafo.png'."
         else
@@ -684,7 +932,8 @@ module pixel_print_studio
         logical :: is_in_route , is_in_route_ari
         integer :: io, iostat, vertice_count
         integer :: k
-    
+        character(len=200) :: command
+
         ! Abrir archivo para escribir el grafo en formato DOT
         open(newunit=io, file='grafo_best_route.dot', status='replace', action='write', iostat=iostat)
         
@@ -728,7 +977,8 @@ module pixel_print_studio
                 end do
                 if(is_in_route_ari) then
                     write(io, &
-                    '("    ", a, " -> ", a, " [color=green label=<", i0, "<br/><font color=''red''>", i0, "</font>>];")') &
+                    '("    ", a, " -> ", a, " [color=green, penwidth=2.0, label=<", i0, ' // &
+                    '"<br/><font color=''red''>", i0, "</font>>];")') &
                     trim(writeInteger(i%vertex_id)), trim(writeInteger(j%dest_vertex%vertex_id)), j%distance, j%print_mant
                     j => j%next_ari
                 else
@@ -760,6 +1010,10 @@ module pixel_print_studio
     
         ! Ejecutar Graphviz para convertir el archivo DOT en una imagen PNG
         call execute_command_line('dot -Tpng grafo_best_route.dot -o grafo_best_route.png', exitstat=iostat)
+        
+        command = 'start '//'grafo_best_route'//'.png' !Visualizar la imagen
+        call system(command)
+
         if (iostat == 0) then
             print *, ""
             print *, ":. Se genero la grafica con el camino mas optimo .:"
@@ -1081,7 +1335,7 @@ module pixel_print_studio
             costos = (rout_max%total_distancia)*80
             ganancias = (rout_max%total_impresoras)*100
             print *, "Costos: ", costos
-            print *, "ganancias: ", ganancias
+            print *, "Ingresos extras: ", ganancias
             print *, ""
             total_distancia = rout_max%total_distancia
             total_impresoras = rout_max%total_impresoras
@@ -1183,8 +1437,8 @@ module pixel_print_studio
                     print *, "Impresoras reparadas: ", current%printMant_dis
                     costos = (current%acummulated_dis)*80 !costo por la ruta minima
                     ganancias = (current%printMant_dis)*100 !ganancias por la ruta minima
-                    print *, "Costo: ", costos
-                    print *, "Ganancias: ", ganancias
+                    print *, "Costos: ", costos
+                    print *, "Ingresos Extras: ", ganancias
                     print *, ""
                     !valores a retornar
                     call get_route(current, ruta, count)
@@ -1197,7 +1451,7 @@ module pixel_print_studio
             current%visited = .true.
             arista_actual => current%ari
 
-            do while(associated(arista_actual))
+            do while(associated(arista_actual)) 
                 vecino => arista_actual%dest_vertex ! vertice venico o destino
                 if(.not. vecino%visited)then
                     if(vecino%acummulated_dis > current%acummulated_dis + arista_actual%distance) then
@@ -1292,9 +1546,9 @@ module pixel_print_studio
         type(vertice), pointer :: ruta(:)   ! arreglo de puntero donde se va a guardar cada ruta
         integer :: count, i
     
-        paso => destino
+        paso => destino !// 5
         count = 0
-    
+   
         ! Cuántos pasos se dieron para llegar al origen para darle tamaño a nuestro arreglo
         do while(associated(paso))
             count = count + 1
@@ -1302,7 +1556,7 @@ module pixel_print_studio
         end do
     
         allocate(ruta(count))
-        paso => destino
+        paso => destino     
         i = count
     
         ! Almacenar la ruta en el arreglo para mostrarla desde el origen al destino
@@ -1347,15 +1601,16 @@ module pixel_print_studio
         end do
 
     end subroutine get_route
-
+    
     !Subrutina para obtener la mejor ruta 
-    subroutine optimal_route(this, origen, destino, id_tecnico, bst_tree)
+    subroutine optimal_route(this, origen, destino, id_tecnico, bst_tree, json, my_block_chain, my_all_list_sucursales)
         class(grafo), intent(inout) :: this
         type(bst), intent(in) :: bst_tree
         type(ruta), pointer :: all_routes
         type(tree_merkle) :: merkle ! Al finalizar la ejecución de la subrutina, cualquier dato almacenado en esta instancia se perderá si no se ha guardado o retornado de alguna manera.
         integer, intent(in) :: origen, destino
         integer*8, intent(in) :: id_tecnico
+        type(list_sucursales), intent(inout) :: my_all_list_sucursales
 
         integer, allocatable :: ruta_dis(:) !Ruta minimizando distancia
         integer, allocatable :: ruta_print(:) !Ruta maximizando impresoras
@@ -1374,54 +1629,108 @@ module pixel_print_studio
 
         !variables para almacenar la infromacion 
         type(node_sucursal), pointer :: sucursal_info, next_sucursal_info
-        type(vertice), pointer :: current_vertex, next_vertex
+        type(vertice), pointer :: current_vertex
         type(arista), pointer :: current_edge !actual arista 
-        integer :: route_distance
+        integer :: route_distance ! costo total de la arista entre dos sucursales
         character(len=:), allocatable :: info_concatenada
         integer index
         
+        !Variables y tipos para crear el Json de los bloques
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer :: root_array, new_data_object, data_array, path
+        character(len=:), allocatable :: root_merkle
+        character(len=:), allocatable :: dataBlock_Chain !INFORMACION DEL HASH (INDEX, TIME 
+                                                        !PREVIUS HASH, ROOTMERKLE, NONE)
+        character(len=:), allocatable :: hash_dataBlock
+
+        !Instancias de mi lista block chain
+        type(block_chain), intent(inout) :: my_block_chain
+        type(all_data) :: my_data_block
+        character(len=20) :: nonce
+
+
+        logical :: file_exists
+        !Variables para crear el timestamp
+        character(len=8) :: date 
+        character(len=10) :: time
+        character(len=5) :: zone
+        character(len=30) :: timestamp
+        character(len=4) :: year
+        character(len=2) :: month, day, hour, minute, second
+        character(len=6) :: fraction 
+
+        inquire(file='blockchain\blockchain.json', exist = file_exists )
+
         nullify(all_routes) ! nulificamos nuestro puntero all_routes 
 
-        ! llamamos a la funcion buscar mejor ruta por distancia
+        ! LLAMAMOS A LA FUNCION BUSCAR MEJOR RUTA POR DISTANCIA
         call this%best_route(origen, destino, ruta_dis, distancia_rout1, totalImpresoras_rout1, successfully)
         
+        ! LLAMAMOS A LA FUNCION BUSCAR MEJOR RUTA POR CANTIDAD IMPREOSARAS
         call this%find_all_routes(origen, destino, all_routes)
         call best_maxRoute(all_routes, ruta_print, distancia_rout2, totalImpresoras_rout2 )
     
-        if (successfully) then ! Si se encuentra la ruta minima
+        if (successfully) then ! SI SE ENCUENTRA LA RUTA MINIMA
             total1 = (totalImpresoras_rout1 * costo_reparacion) - (distancia_rout1 * costo_distancia)
             total2 = (totalImpresoras_rout2 * costo_reparacion) - (distancia_rout2 * costo_distancia)
             
             print *, "--------------------------------------------------------" 
-            print *, "total 1 - distancia Minima:", total1
-            print *, "total 2 - Maximo numero de impresoras reparadas:", total2
+            print *, "total 1 - GANANCIAS POR DISTANCIA MINIMA:", total1
+            print *, "total 2 - GANANCIAS MAXIMO NUMERO DE IMPRESORAS REPARADAS:", total2
             print *, "--------------------------------------------------------"
 
-            !comparar la dos rutas - peso distancia - maxima cantida de impresoras reparadas
+            !COMPARA LA DOS RUTAS (PESO: DISTANCIA) (PESO: CANTIDA IMPORESORAS)
             if(total1 > total2)then
                 call this%graph_best_route(ruta_dis)
                 allocate(ruta_optimal(size(ruta_dis)))
                 ruta_optimal = ruta_dis
+
+                !Incrementar los costos y ganancias si es para la ruta distancia minima
+                costos_totales = costos_totales + (distancia_rout1 * costo_distancia)
+                ingresos_extras_totales = ingresos_extras_totales + (totalImpresoras_rout1 * costo_reparacion)
+                ganancias_totales = ganancias_totales + total1
+
             else
                 call this%graph_best_route(ruta_print)
                 allocate(ruta_optimal(size(ruta_print)))
                 ruta_optimal = ruta_print
+
+                !Incrementar los costos, ingresos y ganancias si es para la ruta con mayor numero de impresoras
+                costos_totales = costos_totales + (distancia_rout2 * costo_distancia)
+                ingresos_extras_totales = ingresos_extras_totales + (totalImpresoras_rout2 * costo_reparacion)
+                ganancias_totales = ganancias_totales + total2
             end if
 
-            !Obtener info para mi nodos hoja de mi arbol Merkle
-            do index = 1, size(ruta_optimal) - 1
 
+            !SI EXISTE ES ARCHIVO JSON DEL BLOCHAIN
+            if(file_exists) then
+                call json%load('C:\Users\Aitan\OneDrive\Escritorio\FASE3 EDD\blockchain\blockchain.json', root_array)
+                call json%create_object(new_data_object, '')
+                call json%create_array(data_array, 'DATA')
+            else
+                call json%create_array(root_array, '')
+                call json%create_object(new_data_object, '')
+                call json%create_array(data_array, 'DATA')
+            end if
+
+            !INGRESO LA RUTA OPTIMA A MI LISTA DE SUCURSALES CON MAS TRABAJOS REALIZADOS
+            do index = 1, size(ruta_optimal)     
+                call my_all_list_sucursales%find_one_list_sucursal(ruta_optimal(index))
+            end do
+            
+            !OBTENER INFO PARA MI NODOS HOJAS DE MI ARBOL MERKLE & INFORMACION PARA MI BLOCKCHAIN
+            do index = 1, size(ruta_optimal) - 1
+                
                 sucursal_info => bst_tree%search_node_bst_id(ruta_optimal(index)) !obtener info sucursal primera     
                 next_sucursal_info => bst_tree%search_node_bst_id(ruta_optimal(index + 1)) !obtener info sucursal segunda posicion
 
-                current_vertex => find_vertex_by_id(this%first_vertex, ruta_optimal(index))
-                next_vertex => find_vertex_by_id(this%first_vertex, ruta_optimal(index + 1))
+                current_vertex => find_vertex_by_id(this%first_vertex, ruta_optimal(index)) !obtener el primer vertice de la ruta
 
-                if(associated(current_vertex))then !Ecnontro vertice inial, vertice siguiente
+                if(associated(current_vertex))then !Encontro vertice inial
                     current_edge => current_vertex%ari
                     do while(associated(current_edge))
                         if(current_edge%dest_vertex%vertex_id == ruta_optimal(index + 1))then
-                            route_distance = current_edge%distance
+                            route_distance = (current_edge%distance) * 80 ! distancia * costo distancia
                             exit
                         end if
                         current_edge => current_edge%next_ari
@@ -1429,20 +1738,99 @@ module pixel_print_studio
                 end if
 
                 if(associated(sucursal_info) .and. associated(next_sucursal_info))then
+                    !Insertar en mi json la data de cada ruta optima
+                    call json%create_object(path, '')
+                    call json%add(path, 'sucursal_o', trim(adjustl(writeInteger(ruta_optimal(index)))))
+                    call json%add(path, 'dirrecion_o', trim(sucursal_info%dirrecion)//','//trim(sucursal_info%departament))
+                    call json%add(path, 'sucursal_d', trim(adjustl(writeInteger(ruta_optimal(index + 1)))))
+                    call json%add(path, 'dirrecion_d', trim(next_sucursal_info%dirrecion)//','&
+                                                     //trim(next_sucursal_info%departament))
+                    call json%add(path, 'costo:', trim(adjustl(writeInteger(route_distance))))
+                    call json%add(data_array, path)
+
+                    !INFORMACION PARA SETEAR A MIS NODOS HOJAS ARBOL MERKLE
                     info_concatenada = ""
-                    info_concatenada = "ID Sucursal Origen: " // trim(adjustl(writeInteger(ruta_optimal(index)))) // "\n "// &
+                    info_concatenada = "ID Sucursal Origen: " // trim(adjustl(writeInteger(ruta_optimal(index)))) // "\n "// & 
                     "Dirección: " // trim(sucursal_info%dirrecion) // "\n "// &
                     "ID Sucursal Destino: " // trim(adjustl(writeInteger(ruta_optimal(index + 1)))) // "\n "// &
                     "Dirección: " // trim(next_sucursal_info%dirrecion)// "\n "//& 
                     "Costo total: " // trim(adjustl(writeInteger(route_distance)))
-                end if
-                !print *, info_concatenada
-                call merkle%add(info_concatenada)
-            end do
 
-            call merkle%generate()
-            !call merkle%showhash(merkle%tophash)
-            call merkle%grap_Tree_merkle()
+                    !INSERTAR DATA EN MI LISTA DATA 
+                    call my_data_block%add_data(trim(adjustl(writeInteger(ruta_optimal(index)))), &
+                                                trim(sucursal_info%dirrecion)//','//trim(sucursal_info%departament), &
+                                                trim(adjustl(writeInteger(ruta_optimal(index + 1)))), &
+                                                trim(next_sucursal_info%dirrecion)//','//trim(next_sucursal_info%departament), &
+                                                trim(adjustl(writeInteger(route_distance))))
+                    
+
+                end if
+                call merkle%add(info_concatenada) !AÑADIR INFO A MI NODO HOJA DEL ARBOL MERKLE
+            end do
+            
+            call merkle%generate() !GENERAMOS EL ARBOL MERKLE
+            call merkle%grap_Tree_merkle() !GRAFICAMOS EL ARBOL MERKLE
+
+
+            index_dataBlock = index_dataBlock + 1 !INCREMENTAR EL ÍNDICE EN DATABLOCK 
+            call DATE_AND_TIME(date, time, zone)
+            year = date(1:4)
+            month = date(5:6)
+            day = date(7:8)
+            hour = time(1:2)
+            minute = time(3:4)
+            second = time(5:6)
+            fraction = time(7:)
+
+            timestamp = trim(year) // '-' // trim(month) // '-' // trim(day) & 
+                //' ' // trim(hour) // '-' // trim(minute) // '-' // trim(second) &
+                //trim(fraction) // ' ' // trim(zone)
+
+            !GENERAR EL ROOT_MERKLE
+            root_merkle = merkle%get_root_hash()
+
+            !COMPROVAMOS SI TENEMOS UN ROOT HASH VALIDO PARA NUESTRO BLOQUE
+            if(trim(root_merkle) == "")then
+                print *, "No se puede generar un hash valido para el Arbol de merkle"
+                return ! SALIR DE LA SUBRUTINA 
+            end if
+
+            !VALIDACIONES PARA COMPROBRAS SI ES EL PRIMER BLOQUE
+            if(.not. is_first_previusHash)then
+                previus_hash = "0000"
+                is_first_previusHash = .true.
+            else
+                previus_hash = last_hash_dataBloke
+            end if 
+            
+            !GENERAR EL HASH DEL BLOCKCHAIN
+            dataBlock_Chain = trim(adjustl(writeInteger(index_dataBlock)))// trim(adjustl(timestamp)) &
+                            // trim(adjustl(previus_hash))//trim(adjustl(root_merkle)) &
+                            // trim(adjustl('0000'//trim(adjustl(writeInteger(index_dataBlock)))))
+            
+            hash_dataBlock = sha256(dataBlock_Chain)
+            last_hash_dataBloke = hash_dataBlock
+     
+
+            call json%add(new_data_object, 'INDEX: ', index_dataBlock) !Insertar un index en DATABLOCK 
+            call json%add(new_data_object, 'TIMESTAMP: ', timestamp) !Insertar TIMESTAMP en DATABLOCK
+            call json%add(new_data_object, data_array)
+            call json%add(new_data_object, 'NONCE:', '0000'//trim(adjustl(writeInteger(index_dataBlock))))
+            call json%add(new_data_object, 'ROOT MERKLE:', root_merkle)
+            call json%add(new_data_object, 'HASH: ', hash_dataBlock)
+            call json%add(new_data_object, 'PREVIUS HASH: ', previus_hash)
+            call json%add(root_array, new_data_object)
+            call json%print(root_array, 'C:\Users\Aitan\OneDrive\Escritorio\FASE3 EDD\blockchain\blockchain.json')
+            call json%destroy(root_array)
+
+            !INICIALIZAR NONCE PARA MI LISTA
+            nonce = ''
+            nonce = '0000'//trim(adjustl(writeInteger(index_dataBlock)))
+         
+            !INSETAR BLOQUE EN MI LISTA 
+            call my_block_chain%add_block(index_dataBlock, timestamp, my_data_block, nonce, &
+                                          previus_hash, root_merkle, hash_dataBlock)    
+            
         else
             print *, "No se pudo encontrar una ruta para la distancia minima."
         endif
@@ -1572,6 +1960,7 @@ module pixel_print_studio
         character(len=200) :: dot_command
         character(len=500) :: label_info
         character(len=20) :: client_id, port_label
+        character(len=200) :: command
     
         dot_filename = trim(filename) // ".dot"
         png_filename = trim(filename) // ".png"
@@ -1616,11 +2005,14 @@ module pixel_print_studio
         close(unit)
     
         call execute_command_line(dot_command, exitstat=j)
-    
+        
+        command = 'start '// trim(filename) // '.png' !Mostrar la imagen automaticamente
+        call system(command)
+
         if(exitstat /= 0) then
             print *, "Error al crear la grafica"
         else
-            print *, "Se creo correctamente la grafica"
+            print *, ":. Se creo correctamente la grafica de la tabla hash .:"
         endif
     end subroutine graph_hash_table
     
@@ -1703,8 +2095,8 @@ module pixel_print_studio
         print*, ""
     end subroutine list_all_technician
 
-    !Subrutinas y funciones para añadir a la Lista auxiliar tecnicos 
-    subroutine add_tencial(this, dpi, name, last_name)
+    !:::::::::::: Subrutinas y funciones para añadir a la Lista auxiliar tecnicos 
+    subroutine add_techical(this, dpi, name, last_name)
         class(all_techinical), intent(inout) :: this
         integer*8, intent(in) :: dpi
         character(len=:), allocatable, intent(in) :: name, last_name
@@ -1721,12 +2113,322 @@ module pixel_print_studio
             this%head_techincal => new_tech
         else
             current_tech => this%head_techincal
-            do while(associated(current_tech))
+            do while(associated(current_tech%next_techincal))
                 current_tech => current_tech%next_techincal
             end do
             current_tech%next_techincal => new_tech
         end if
-    end subroutine add_tencial
+    end subroutine add_techical
+
+    !SUBRUTINA PARA BUSCAR TECNICO
+    subroutine find_one_techical(this, dpi)
+        class(all_techinical), intent(inout) :: this
+        integer*8, intent(in) :: dpi
+        logical :: found
+        type(node_techinical), pointer :: current_tech
+
+        found = .false.
+
+        current_tech => this%head_techincal
+        do while(associated(current_tech))
+            if(current_tech%dpi == dpi)then
+                current_tech%jobs_done = current_tech%jobs_done + 1
+                found = .true.
+                exit 
+            end if
+            current_tech => current_tech%next_techincal
+        end do
+
+        if(.not. found)then
+            print*, "No se encontro el tecnico con el DPI:", dpi
+        end if
+
+    end subroutine find_one_techical
+
+    !Ordenamiento burbuja ordenando los tecnicos por trabajo realizado
+    subroutine bublle_sort_tech(this)
+        class(all_techinical), intent(inout) :: this
+        type(node_techinical), pointer :: current_tech, next_tech
+        integer :: temp_job_done
+        integer*8 :: temp_dpi
+        character(len=32) :: temp_name, temp_last_name
+
+        if(.not. associated(this%head_techincal))then
+            print*, "No hay tecnicos en la lista"
+            return
+        end if
+
+        current_tech => this%head_techincal
+        do while(associated(current_tech) .and. associated(current_tech%next_techincal))
+            next_tech => current_tech%next_techincal
+            do while(associated(next_tech))
+                if(current_tech%jobs_done < next_tech%jobs_done)then
+                    !Intercambiar trabajos realizados
+                    temp_job_done = current_tech%jobs_done
+                    current_tech%jobs_done = next_tech%jobs_done
+                    next_tech%jobs_done = temp_job_done
+    
+                    !Intercambiar dpi
+                    temp_dpi = current_tech%dpi
+                    current_tech%dpi = next_tech%dpi
+                    next_tech%dpi = temp_dpi
+    
+                    !Intercambiar nombre 
+                    temp_name = current_tech%name
+                    current_tech%name = next_tech%name
+                    next_tech%name = temp_name
+    
+                    !Intercambiar apellido
+                    temp_last_name = current_tech%last_name
+                    current_tech%last_name = next_tech%last_name
+                    next_tech%last_name = temp_last_name
+                end if
+                next_tech => next_tech%next_techincal
+            end do
+            current_tech => current_tech%next_techincal
+        end do
+    end subroutine bublle_sort_tech
+
+    !Mostrar top 5 tenicos con mayor numeros de trabajos realizados
+    subroutine top_5_tech(this)
+        class(all_techinical), intent(in) :: this
+        type(node_techinical), pointer :: current_tech
+        integer :: count
+
+        current_tech => this%head_techincal
+        count = 0
+        print *, "Top 5 tecnicos con mayor numero de trabajos realizados"
+        print *,"-------------------------------------"
+        do while(associated(current_tech) .and. count < 5)
+            write(*, '(A, I20)') 'DPI del tecnico: ', current_tech%dpi
+            write(*, '(A, A, A, A)') &
+            'Nombre del tecnico: ', trim(adjustl(current_tech%name)), "  ", trim(adjustl(current_tech%last_name))
+            write(*, '(A, I0)') 'Trabajos realizados: ', current_tech%jobs_done
+            count = count + 1
+            print *, "-------------------------------------"
+            current_tech => current_tech%next_techincal
+        end do
+    end subroutine top_5_tech
+
+    !Mostrar todos los tecnicos
+    subroutine show_all_technicians(this)
+        class(all_techinical), intent(in) :: this
+        type(node_techinical), pointer :: current_tech
+    
+        current_tech => this%head_techincal
+    
+        if (.not. associated(current_tech)) then
+            print *, "No hay técnicos para mostrar."
+            return
+        end if
+    
+        print *, "Mostrando todos los técnicos registrados:"
+        do while(associated(current_tech))
+            print *, "DPI:", current_tech%dpi
+            print *, "Nombre:", trim(current_tech%name)
+            print *, "Apellido:", trim(current_tech%last_name)
+            print *, "Trabajos realizados:", current_tech%jobs_done
+            print *, "-------------------------"
+            current_tech => current_tech%next_techincal
+        end do
+    end subroutine show_all_technicians
+
+    !:::::::::::: Subrutinas y funciones para añadir a la Lista de sucursales
+    !Subrutina para añadir un nodo sucursal a la lista 
+    subroutine add_node_list_suc(this, id_suc, departamento, direccion)
+        class(list_sucursales), intent(inout) :: this
+        integer, intent(in) :: id_suc
+        character(len=:), allocatable , intent(in) :: departamento, direccion
+        type(node_list_sucursal), pointer :: new_node, current
+
+        allocate(new_node)
+        new_node%id_sucursal = id_suc
+        new_node%departament = departamento
+        new_node%direccion = direccion
+        new_node%next_suc => null()
+
+        if(.not. associated(this%head_list))then
+            this%head_list => new_node
+        else
+            current => this%head_list
+            do while(associated(current%next_suc))
+                current => current%next_suc
+            end do
+            current%next_suc => new_node
+        end if
+    end subroutine add_node_list_suc
+
+    !Subrutina para buscar un nodo sucursal en la lista y actualizarme request_jobs
+    subroutine find_one_list_sucursal(this, id_sucursal_ori)
+        class(list_sucursales), intent(inout) :: this
+        integer, intent(in) :: id_sucursal_ori
+        logical :: found
+        type(node_list_sucursal), pointer :: current_node_suc
+        
+        found = .false.
+        current_node_suc => this%head_list
+        do while(associated(current_node_suc))
+            if(current_node_suc%id_sucursal == id_sucursal_ori)then
+                current_node_suc%request_jobs = current_node_suc%request_jobs + 1
+                found = .true.
+                exit
+            end if
+            current_node_suc => current_node_suc%next_suc
+        end do
+
+        if(.not. found)then
+            print*, "No se encontro la sucursal con el id de origen", id_sucursal_ori
+        end if
+    end subroutine find_one_list_sucursal
+
+    !Subrutina para ordenar una sucursal por medio de request jobs
+    subroutine bublle_sort_list_suc(this)
+        class(list_sucursales), intent(inout) :: this
+        type(node_list_sucursal), pointer :: current_suc, next_sucursal
+        integer :: temp_request_jobs
+        integer :: temp_id_sucursal
+        character(len=32) :: temp_departament, temp_dirrecion
+    
+        if (.not. associated(this%head_list)) then
+            print*, "No hay sucursales en la lista."
+            return
+        end if
+    
+        current_suc => this%head_list
+        do while(associated(current_suc) .and. associated(current_suc%next_suc))
+            next_sucursal => current_suc%next_suc
+            do while(associated(next_sucursal))
+                if (current_suc%request_jobs < next_sucursal%request_jobs) then
+                    ! Intercambiar request_jobs
+                    temp_request_jobs = current_suc%request_jobs
+                    current_suc%request_jobs = next_sucursal%request_jobs
+                    next_sucursal%request_jobs = temp_request_jobs
+    
+                    ! Intercambiar id_sucursal
+                    temp_id_sucursal = current_suc%id_sucursal
+                    current_suc%id_sucursal = next_sucursal%id_sucursal
+                    next_sucursal%id_sucursal = temp_id_sucursal
+    
+                    ! Intercambiar departament
+                    temp_departament = current_suc%departament
+                    current_suc%departament = next_sucursal%departament
+                    next_sucursal%departament = temp_departament
+    
+                    ! Intercambiar direccion
+                    temp_dirrecion = current_suc%direccion
+                    current_suc%direccion = next_sucursal%direccion
+                    next_sucursal%direccion = temp_dirrecion
+                end if
+                next_sucursal => next_sucursal%next_suc
+            end do
+            current_suc => current_suc%next_suc
+        end do
+    end subroutine bublle_sort_list_suc
+
+    !Subrutina para mostrar top_5_sucursales
+    subroutine top_5_sucusales(this)
+        class(list_sucursales), intent(in) :: this
+        type(node_list_sucursal), pointer :: current_suc
+        integer :: count
+    
+        current_suc => this%head_list
+        count = 0
+        print *, "Top 5 sucursales con mayor numero de trabajos solicitados"
+        print *, "-------------------------------------"
+        do while(associated(current_suc) .and. count < 5)
+            write(*, '(A, I5)') 'ID de la sucursal: ', current_suc%id_sucursal
+            write(*, '(A, A)') 'Departamento: ', trim(adjustl(current_suc%departament))
+            write(*, '(A, A)') 'Dirección: ', trim(adjustl(current_suc%direccion))
+            write(*, '(A, I0)') 'Trabajos solicitados: ', current_suc%request_jobs
+            count = count + 1
+            print *, "-------------------------------------"
+            current_suc => current_suc%next_suc
+        end do
+    end subroutine top_5_sucusales
+
+    !Subrutina para mostrar toda la lista de sucursales
+    subroutine show_all_list_sucursales(this)
+        class(list_sucursales), intent(in) :: this
+        type(node_list_sucursal), pointer :: current_suc
+    
+        current_suc => this%head_list
+    
+        if (.not. associated(current_suc)) then
+            print *, "No hay sucursales para mostrar."
+            return
+        end if
+    
+        print *, "Mostrando todas las sucursales registradas:"
+        do while(associated(current_suc))
+            print *, "ID Sucursal:", current_suc%id_sucursal
+            print *, "Departamento:", trim(current_suc%departament)
+            print *, "Dirección:", trim(current_suc%direccion)
+            print *, "Trabajos solicitados:", current_suc%request_jobs
+            print *, "-------------------------"
+            current_suc => current_suc%next_suc
+        end do
+    end subroutine show_all_list_sucursales
+
+
+    !::::::::::::: Subrutina y funciones para escribir la sucursal en el json
+
+    !Funcion para encriptar la contrasena 
+    function encriptar_contrasena(password) result(contrasena_encriptada)
+        character(len=*), intent(in) :: password
+        character(len=32) :: contrasena_encriptada
+        integer :: i, code
+        real :: semilla = 1
+
+        contrasena_encriptada = ''  
+        do i = 1, len_trim(password)
+            code = ichar(password(i:i)) + nint(semilla) 
+            contrasena_encriptada = trim(contrasena_encriptada) // achar(mod(code, 127))
+        end do
+    end function encriptar_contrasena
+
+    !Subrutinas para escribir mis sucursales 
+    recursive subroutine  add_bst_nodes_to_json(node, data, json)
+        type(node_sucursal), pointer :: node
+        type(json_value), pointer :: data, path
+        type(json_core) :: json
+        character(len=32) :: password_encrypted
+
+        if(.not. associated(node)) return
+        
+        call add_bst_nodes_to_json(node%left, data, json)
+
+        password_encrypted = encriptar_contrasena(node%password)
+
+        call json%create_object(path, '')
+        call json%add(path, 'id_sucursal', node%id_sucursal)
+        call json%add(path, 'password', trim(password_encrypted))
+        call json%add(path, 'departament', trim(node%departament))
+        call json%add(path, 'direccion', trim(node%dirrecion))
+        call json%add(data, path) 
+
+        call add_bst_nodes_to_json(node%right, data, json)
+        
+    end subroutine add_bst_nodes_to_json
+
+    !Escribir el arbol bst al json
+    subroutine write_bst_to_json(this)
+        class(bst), intent(in) :: this
+        type(json_core) :: json
+        type(json_value), pointer :: root, data1
+
+        call json%initialize()
+        call json%create_object(root, '')
+        call json%create_array(data1, 'sucursales')
+
+        call add_bst_nodes_to_json(this%root, data1, json)
+
+        call json%add(root, data1)
+        call json%print(root, "C:\Users\Aitan\OneDrive\Escritorio\FASE3 EDD\data_empresa\Sucursales_data.json")
+        call json%destroy(root)
+    end subroutine write_bst_to_json
+    
+    !:::::::: END Subrutina y funciones para escribir
+ 
 
     !::::::::::::::::::::::::::::   END Subrutinas y funciones para la Tabla Hash :::::::::::::
 
@@ -1831,6 +2533,212 @@ module pixel_print_studio
         writeInteger = adjustl(trim(writeInteger))
     end function writeInteger
 
+! :::::: Metodos para calculas SHA256 - AUTOR: Mikael Leetmaa 2014 
+    function sha256(str)
+        character(len=64) :: sha256
+        character(len=*), intent(in) :: str
+        sha256 = sha256b(str, 1)
+    end function sha256
+
+    function dirty_sha256(str)
+        character(len=64) :: dirty_sha256
+        character(len=*), intent(in) :: str
+        dirty_sha256 = sha256b(str, 0)
+    end function dirty_sha256
+
+    function sha256b(str, swap)
+        character(len=64) :: sha256b
+        character(len=*), intent(in) :: str
+        integer, intent(in) :: swap
+        integer(kind=c_int64_t) :: length
+        integer(kind=c_int32_t) :: temp1, temp2, i
+        integer :: break, pos0
+        integer(kind=c_int32_t) :: h0_ref(8), k0_ref(64)
+        integer(kind=c_int32_t) :: h0(8), k0(64), a0(8), w0(64)
+        data (h0_ref(i),i=1,8)/&
+        & z'6a09e667', z'bb67ae85', z'3c6ef372', z'a54ff53a', z'510e527f', z'9b05688c', z'1f83d9ab', z'5be0cd19'/
+        data (k0_ref(i), i=1,64)/&
+        & z'428a2f98', z'71374491', z'b5c0fbcf', z'e9b5dba5', z'3956c25b', z'59f111f1', z'923f82a4', z'ab1c5ed5',&
+        & z'd807aa98', z'12835b01', z'243185be', z'550c7dc3', z'72be5d74', z'80deb1fe', z'9bdc06a7', z'c19bf174',&
+        & z'e49b69c1', z'efbe4786', z'0fc19dc6', z'240ca1cc', z'2de92c6f', z'4a7484aa', z'5cb0a9dc', z'76f988da',&
+        & z'983e5152', z'a831c66d', z'b00327c8', z'bf597fc7', z'c6e00bf3', z'd5a79147', z'06ca6351', z'14292967',&
+        & z'27b70a85', z'2e1b2138', z'4d2c6dfc', z'53380d13', z'650a7354', z'766a0abb', z'81c2c92e', z'92722c85',&
+        & z'a2bfe8a1', z'a81a664b', z'c24b8b70', z'c76c51a3', z'd192e819', z'd6990624', z'f40e3585', z'106aa070',&
+        & z'19a4c116', z'1e376c08', z'2748774c', z'34b0bcb5', z'391c0cb3', z'4ed8aa4a', z'5b9cca4f', z'682e6ff3',&
+        & z'748f82ee', z'78a5636f', z'84c87814', z'8cc70208', z'90befffa', z'a4506ceb', z'bef9a3f7', z'c67178f2'/
+        h0 = h0_ref
+        k0 = k0_ref
+        break = 0
+        pos0 = 1
+        length = len(trim(str))
+        do while (break .ne. 1)
+            call consume_chunk(str, length, w0(1:16), pos0, break, swap)
+        do i=17,64
+                    w0(i) = ms1(w0(i-2)) + w0(i-16) + ms0(w0(i-15)) + w0(i-7)
+            end do
+            a0 = h0
+            do i=1,64
+                    temp1 = a0(8) + cs1(a0(5)) + ch(a0(5),a0(6),a0(7)) + k0(i) + w0(i)
+                    temp2 = cs0(a0(1)) + maj(a0(1),a0(2),a0(3))
+                    a0(8) = a0(7)
+                    a0(7) = a0(6)
+                    a0(6) = a0(5)
+                    a0(5) = a0(4) + temp1
+                    a0(4) = a0(3)
+                    a0(3) = a0(2)
+                    a0(2) = a0(1)
+                    a0(1) = temp1 + temp2
+        end do
+            h0 = h0 + a0
+        end do
+        write(sha256b,'(8z8.8)') h0(1), h0(2), h0(3), h0(4), h0(5), h0(6), h0(7), h0(8)
+    end function sha256b
+
+
+    function swap32(inp)
+        integer(kind=c_int32_t) :: swap32
+        integer(kind=c_int32_t), intent(in)  :: inp
+        call mvbits(inp, 24, 8, swap32,  0)
+        call mvbits(inp, 16, 8, swap32,  8)
+        call mvbits(inp,  8, 8, swap32, 16)
+        call mvbits(inp,  0, 8, swap32, 24)
+    end function swap32
+
+    function swap64(inp)
+        integer(kind=c_int64_t) :: swap64
+        integer(kind=c_int64_t), intent(in)  :: inp
+        call mvbits(inp, 56, 8, swap64,  0)
+        call mvbits(inp, 48, 8, swap64,  8)
+        call mvbits(inp, 40, 8, swap64, 16)
+        call mvbits(inp, 32, 8, swap64, 24)
+        call mvbits(inp, 24, 8, swap64, 32)
+        call mvbits(inp, 16, 8, swap64, 40)
+        call mvbits(inp,  8, 8, swap64, 48)
+        call mvbits(inp,  0, 8, swap64, 56)
+    end function swap64
+
+    function swap64a(inp)
+        integer(kind=c_int64_t) :: swap64a
+        integer(kind=c_int64_t), intent(in)  :: inp
+        call mvbits(inp,  0, 8, swap64a, 32)
+        call mvbits(inp,  8, 8, swap64a, 40)
+        call mvbits(inp, 16, 8, swap64a, 48)
+        call mvbits(inp, 24, 8, swap64a, 56)
+        call mvbits(inp, 32, 8, swap64a,  0)
+        call mvbits(inp, 40, 8, swap64a,  8)
+        call mvbits(inp, 48, 8, swap64a, 16)
+        call mvbits(inp, 56, 8, swap64a, 24)
+    end function swap64a
+
+    function ch(a, b, c)
+        integer(kind=c_int32_t) :: ch
+        integer(kind=c_int32_t), intent(in) :: a, b, c
+        ch = ieor(iand(a, b), (iand(not(a), c)))
+    end function ch
+
+    function maj(a, b, c)
+        integer(kind=c_int32_t) :: maj
+        integer(kind=c_int32_t), intent(in) :: a, b, c
+        maj = ieor(iand(a, b), ieor(iand(a, c), iand(b, c)))
+    end function maj
+
+    function cs0(a)
+        integer(kind=c_int32_t) :: cs0
+        integer(kind=c_int32_t), intent(in) :: a
+        cs0 = ieor(ishftc(a, -2), ieor(ishftc(a, -13), ishftc(a, -22)))
+    end function cs0
+
+    function cs1(a)
+        integer(kind=c_int32_t) :: cs1
+        integer(kind=c_int32_t), intent(in) :: a
+        cs1 = ieor(ishftc(a, -6), ieor(ishftc(a, -11), ishftc(a, -25)))
+    end function cs1
+
+    function ms0(a)
+        integer(kind=c_int32_t) :: ms0
+        integer(kind=c_int32_t), intent(in) :: a
+        ms0 = ieor(ishftc(a, -7), ieor(ishftc(a, -18), ishft(a, -3)))
+    end function ms0
+
+    function ms1(a)
+        integer(kind=c_int32_t) :: ms1
+        integer(kind=c_int32_t), intent(in) :: a
+        ms1 = ieor(ishftc(a, -17), ieor(ishftc(a, -19), ishft(a, -10)))
+    end function ms1
+
+    subroutine consume_chunk(str, length, inp, pos0, break, swap)
+        character(len=*), intent(in) :: str
+        integer(kind=c_int64_t), intent(in) :: length
+        integer(kind=c_int32_t), intent(inout) :: inp(*)
+        integer, intent(inout) :: pos0, break
+        integer, intent(in) :: swap
+        character(len=4) :: last_word
+        integer(kind=c_int64_t) :: rest
+        integer(kind=c_int32_t) :: to_pad, leftover, space_left, zero
+        integer(kind=c_int8_t)  :: ipad0, ipad1, i
+        data zero  / b'00000000000000000000000000000000'/
+        data ipad0 / b'00000000' /
+        data ipad1 / b'10000000' /
+        rest = length - pos0 + 1
+            if (rest .ge. 64) then
+                inp(1:16) = transfer(str(pos0:pos0+64-1), inp(1:16))
+                if (swap .eq. 1) then
+                        do i=1,16
+                            inp(i) = swap32(inp(i))
+                        end do
+                end if
+                pos0 = pos0 + 64
+                else
+                    space_left = 16
+                    leftover   = rest/4
+                    if (leftover .gt. 0) then
+                            inp(1:leftover) = transfer(str(pos0:pos0+leftover*4-1), inp(1:16))
+                            if (swap .eq. 1) then
+                                do i=1,leftover
+                                    inp(i) = swap32(inp(i))
+                                end do
+                            end if
+                            pos0 = pos0 + leftover*4
+                            rest = length - pos0 + 1
+                            space_left = space_left - leftover
+                end if
+
+                if (space_left .gt. 0) then
+                        if (break .ne. 2) then
+                            if (rest .gt. 0) then
+                                last_word(1:rest) = str(pos0:pos0+rest-1)
+                                pos0 = pos0 + rest
+                            end if
+                            last_word(rest+1:rest+1) = transfer(ipad1, last_word(1:1))
+                            to_pad = 4 - rest - 1
+                    do i=1, to_pad
+                                last_word(rest+1+i:rest+1+i) = transfer(ipad0, last_word(1:1))
+                            end do
+                            inp(17-space_left) = transfer(last_word(1:4), inp(1))
+                            if (swap .eq. 1) then
+                                inp(17-space_left) = swap32(inp(17-space_left))
+                            end if
+                            space_left = space_left - 1
+                            break = 2
+                        end if
+                        if (space_left .eq. 1) then
+                            inp(16) = zero
+                            space_left = 0
+                        end if
+                        rest = 0
+                end if
+
+                if ((rest .eq. 0) .and. (space_left .ge. 2)) then
+                        do while (space_left .gt. 2)
+                            inp(17-space_left) = zero
+                            space_left = space_left - 1
+                        end do
+                        inp(15:16) = transfer(swap64a(length*8), inp(15:16))
+                        break = 1
+                end if
+            end if
+    end subroutine consume_chunk
+
 end module pixel_print_studio
 
 program main
@@ -1847,6 +2755,15 @@ program main
     integer :: op_menu_suc, id_sucursal_input ! opcion menu sucursal
     character(len=50) :: password_sucursal
 
+    ! VARIABLES PARA MENU REPORTES
+    integer :: op_menu_rep
+
+    !variables constantes para ingresar sesion administrador
+    character(len=*), parameter :: user_admin = "EDD1S2024"
+    character(len=*), parameter :: password_admin = "ProyectoFase3"
+    character(len=20) :: username_input
+    character(len=20) :: password_input
+
     !Json 
     type(Json_file) :: json
     type(json_core) :: jsonc
@@ -1855,7 +2772,6 @@ program main
     !Sucursales
     type(bst) :: mytree_bst
     type(node_sucursal), pointer :: pointer_sucursal
-
 
     ! ARBOL MERKLE
     type(tree_merkle) :: merkle
@@ -1891,6 +2807,20 @@ program main
     integer*8 :: tecnico_input
     logical :: exist_v_origen=.false. , exist_v_destino=.false. , existe_tech
 
+    !USO SHA256
+    character(len=256) :: message 
+
+    !JSON BLOCK CHAIN
+    type(json_core) :: json_data
+    
+    !INSTANCIA LISTA SIMPLE BLOCK CHAIN
+    type(block_chain) :: my_block_chain
+
+    !INSTANCIA DE LISTA COMPLETA TECNICOS
+    type(all_techinical) :: my_all_techinical
+
+    !INSTANCIA DE LISTA COMPLETA SUCURSALES
+    type(list_sucursales) :: my_all_list_sucursales
 
     ! Tabla HASH
     integer :: m = 7 
@@ -1906,252 +2836,283 @@ program main
     !call h%init(m, maxi)
     !print *, 'Initial size table: ', m
     !print *, 'Maximum percentage: ', maxi
-
+    call json_data%initialize() !Inicializar json para crear nuestro arhivo json 
   
 
 
-   
 
-    ! :::: Menu principal
-    do while(opcion_menu /= 4)
-        print *, ":::::::::: Pixel Print Studio :::::::::"
-        print *, "[1] Carga de archivo - Sucursal"
-        print *, "[2] Carga de archivo - Rutas"
-        print *, "[3] Menu Sucursales"
-        print *, "[4] Salir"
-        read *, opcion_menu
-        select case(opcion_menu)
-            case (1) ! Carga archivo sucursal
-                call json%load(filename= "sucursales.json")
-                call json%info('', n_children= size_surcursal)
-                call json%get_core(jsonc)
-                call json%get('', p_list_S, found_s)
-
-                do i = 1, size_surcursal
-                    call jsonc%get_child(p_list_S, i, p_sucursal, found= found_s)
-                    !Inicializamos las variables
-                    id_sucursal = 0
-                    departament = ''
-                    dirrecion = ''
-                    password = ''
-
-                    call jsonc%get_child(p_sucursal, 'id', p_atributos_s, found= found_s)
-                    if (found_s) then
-                        call jsonc%get(p_atributos_s, id_sucursal)
-                    end if
-
-                    call jsonc%get_child(p_sucursal, 'departamento', p_atributos_s, found= found_s)
-                    if (found_s) then
-                        call jsonc%get(p_atributos_s, departament)
-                    end if
-
-                    call jsonc%get_child(p_sucursal, 'direccion', p_atributos_s, found= found_s)
-                    if (found_s) then
-                        call jsonc%get(p_atributos_s, dirrecion)
-                    end if
-
-                    call jsonc%get_child(p_sucursal, 'password', p_atributos_s, found= found_s)
-                    if (found_s) then
-                        call jsonc%get(p_atributos_s, password)
-                    end if
-                    call mytree_bst%add_bst(id_sucursal, departament, dirrecion, password)
-                end do
-            print*, ""
-            print *, ":. Se genero la carga masiva de sucursales correctamente .:"
-            print*, ""
-
-            !call mytree_bst%inorderTraversal(mytree_bst%root)
-            case (2) ! Carga archivo rutas
-                
-                ! Inicializar el grafo
-                call g%initiGrafo()
-
-                call json%load(filename= "rutas.json")
-                call json%get('grafo', p_list_r, found_r)
-                call json%info('grafo', n_children= size_rutas)
-                call json%get_core(jsonc)
-
-                do j=1, size_rutas
-                    call jsonc%get_child(p_list_r, j, p_ruta, found= found_r)
-                    id_s1 = 0
-                    id_s2 = 0
-                    distancia = 0
-                    impresoras_mant = 0
-
-                    call jsonc%get_child(p_ruta, 's1', p_atributos_r, found= found_r)
-                    if(found_r)then
-                        call jsonc%get(p_atributos_r, id_s1)
-                    end if
-
-                    call jsonc%get_child(p_ruta, 's2', p_atributos_r, found= found_r)
-                    if(found_r)then
-                        call jsonc%get(p_atributos_r, id_s2)
-                    end if
-
-                    call jsonc%get_child(p_ruta, 'distancia', p_atributos_r, found= found_r)
-                    if(found_r)then
-                        call jsonc%get(p_atributos_r, distancia)
-                    end if
-
-                    call jsonc%get_child(p_ruta, 'imp_mantenimiento', p_atributos_r, found= found_r)
-                    if(found_r)then
-                        call jsonc%get(p_atributos_r, impresoras_mant)
-                    end if
-                    call g%InsertaVertice(id_s1)
-                    call g%InsertaVertice(id_s2)
-
-                    call g%InsertArista(id_s1, id_s2, distancia, impresoras_mant)
-                end do
-
-                print*, ""
-                print*, ":. Se genero la carga masiva de rutas correctamente .:"
-                print*, ""
-
-                call g%GenerarGrafoDot() !Graficar el grafo
-            case (3) ! Menu Sucursal
-                op_menu_suc = 0
-                print *, "Ingrese las credenciales de la sucursal"
-                print *, "Ingrese el ID de la sucursal"
-                read(*, '(I10)') id_sucursal_input
-                print *, "Ingrese la contrasena de la sucursal"
-                read(*, '(A)') password_sucursal
-                pointer_sucursal => mytree_bst%search_node_bst(id_sucursal_input, password_sucursal)
-                if(associated(pointer_sucursal)) then
-                    do while(op_menu_suc /= 5)
-                        print *, "Menu Sucursales"
-                        print *, "[1] - Carga de tecnicos"
-                        print *, "[2] - Ruta optima"
-                        print *, "[3] - Informacion de un tecnico"
-                        print *, "[4] - Listar tecnico"
-                        print *, "[5] - Salir"
-                        print *, "Ingrese una opcion"
-                        read *, op_menu_suc
-                        select case (op_menu_suc)
-                            case(1) !carga de tecnicos
-                                print *, "Ingrese el nombre del archivo JSON a cargar: "
-                                read(*, '(A)') name_json_load
-                                call json%load(filename=trim(name_json_load))
-                                !call json%load(filename="tecnicos.json")
-                                
-                                call json%info('', n_children= size_tecnicos)
-                                call json%get_core(jsonc)
-                                call json%get('', p_list_t, found_t)
-                                
-                                !Inicializar tabla
-                                if(.not. allocated(pointer_sucursal%tecnicos))then
-                                    allocate(pointer_sucursal%tecnicos)
-                                    call pointer_sucursal%tecnicos%init(m, maxi) 
-                                end if
-                                
-                                do i = 1, size_tecnicos
-                                    call jsonc%get_child(p_list_t, i, p_tecnico, found= found_t)
-                                    dpi_str = ''
-                                    nombre = ''
-                                    apellido = ''
-                                    genero = ''
-                                    direccion = ''
-                                    telefono = 0
-
-                                    call jsonc%get_child(p_tecnico, 'dpi', p_atributos_t, found= found_t)
-                                    if(found_t)then
-                                        call jsonc%get(p_atributos_t, dpi_str)
-                                        read(dpi_str, *) dpi_tecnico
-                                    end if
-
-                                    call jsonc%get_child(p_tecnico, 'nombre', p_atributos_t, found= found_t)
-                                    if(found_t)then
-                                        call jsonc%get(p_atributos_t, nombre)
-                                    end if
-
-                                    call jsonc%get_child(p_tecnico, 'apellido', p_atributos_t, found= found_t)
-                                    if(found_t)then
-                                        call jsonc%get(p_atributos_t, apellido)
-                                    end if
-
-                                    call jsonc%get_child(p_tecnico, 'genero', p_atributos_t, found= found_t)
-                                    if(found_t)then
-                                        call jsonc%get(p_atributos_t, genero)
+    print *, ":::::::::: Pixel Print Studio :::::::::"
+    print *, " ----- Ingrese sus credenciales -----"
+    print *, "Ingrese el nombre de usuario administrador:"
+    read(*, '(A)') username_input
+    print *, "Ingrese la contrasena:"
+    read(*, '(A)') password_input
+    if(trim(username_input) == user_admin .and. trim(password_input) == password_admin)then
+    
+        print *, " - - USUARIO ADMINISTRADOR - -"
+        ! :::: Menu principal
+        do while(opcion_menu /= 5)
+            print *, ":::::::::: Pixel Print Studio :::::::::"
+            print *, "[1] Carga de archivo - Sucursal"
+            print *, "[2] Carga de archivo - Rutas"
+            print *, "[3] Menu Sucursales"
+            print *, "[4] Reportes"
+            print *, "[5] Salir"
+            read *, opcion_menu
+            select case(opcion_menu)
+                case (1) ! Carga archivo sucursal
+                    call json%load(filename= "sucursales_aux.json")
+                    call json%info('', n_children= size_surcursal)
+                    call json%get_core(jsonc)
+                    call json%get('', p_list_S, found_s)
+    
+                    do i = 1, size_surcursal
+                        call jsonc%get_child(p_list_S, i, p_sucursal, found= found_s)
+                        !Inicializamos las variables
+                        id_sucursal = 0
+                        departament = ''
+                        dirrecion = ''
+                        password = ''
+    
+                        call jsonc%get_child(p_sucursal, 'id', p_atributos_s, found= found_s)
+                        if (found_s) then
+                            call jsonc%get(p_atributos_s, id_sucursal)
+                        end if
+    
+                        call jsonc%get_child(p_sucursal, 'departamento', p_atributos_s, found= found_s)
+                        if (found_s) then
+                            call jsonc%get(p_atributos_s, departament)
+                        end if
+    
+                        call jsonc%get_child(p_sucursal, 'direccion', p_atributos_s, found= found_s)
+                        if (found_s) then
+                            call jsonc%get(p_atributos_s, dirrecion)
+                        end if
+    
+                        call jsonc%get_child(p_sucursal, 'password', p_atributos_s, found= found_s)
+                        if (found_s) then
+                            call jsonc%get(p_atributos_s, password)
+                        end if
+                        call mytree_bst%add_bst(id_sucursal, departament, dirrecion, password)
+    
+                        call my_all_list_sucursales%add_node_list_suc(id_sucursal, departament, dirrecion) !Insertar una sucursal en la lista de sucursales
+                    end do
+                    print*, ""
+                    print *, ":. Se genero la carga masiva de sucursales correctamente .:"
+                    print*, ""
+    
+                call mytree_bst%inorderTraversal(mytree_bst%root)
+    
+    
+                call mytree_bst%write_bst_to_json()
+    
+                case (2) ! Carga archivo rutas
+                    
+                    ! Inicializar el grafo
+                    call g%initiGrafo()
+    
+                    call json%load(filename= "grafo.json")
+                    call json%get('grafo', p_list_r, found_r)
+                    call json%info('grafo', n_children= size_rutas)
+                    call json%get_core(jsonc)
+    
+                    do j=1, size_rutas
+                        call jsonc%get_child(p_list_r, j, p_ruta, found= found_r)
+                        id_s1 = 0
+                        id_s2 = 0
+                        distancia = 0
+                        impresoras_mant = 0
+    
+                        call jsonc%get_child(p_ruta, 's1', p_atributos_r, found= found_r)
+                        if(found_r)then
+                            call jsonc%get(p_atributos_r, id_s1)
+                        end if
+    
+                        call jsonc%get_child(p_ruta, 's2', p_atributos_r, found= found_r)
+                        if(found_r)then
+                            call jsonc%get(p_atributos_r, id_s2)
+                        end if
+    
+                        call jsonc%get_child(p_ruta, 'distancia', p_atributos_r, found= found_r)
+                        if(found_r)then
+                            call jsonc%get(p_atributos_r, distancia)
+                        end if
+    
+                        call jsonc%get_child(p_ruta, 'imp_mantenimiento', p_atributos_r, found= found_r)
+                        if(found_r)then
+                            call jsonc%get(p_atributos_r, impresoras_mant)
+                        end if
+                        call g%InsertaVertice(id_s1)
+                        call g%InsertaVertice(id_s2)
+    
+                        call g%InsertArista(id_s1, id_s2, distancia, impresoras_mant)
+                    end do
+    
+                    print*, ""
+                    print*, ":. Se genero la carga masiva de rutas correctamente .:"
+                    print*, ""
+    
+                    call g%GenerarGrafoDot() !Graficar el grafo
+                case (3) ! Menu Sucursal
+                    op_menu_suc = 0
+                    print *, "Ingrese las credenciales de la sucursal"
+                    print *, "Ingrese el ID de la sucursal"
+                    read(*, '(I10)') id_sucursal_input
+                    print *, "Ingrese la contrasena de la sucursal"
+                    read(*, '(A)') password_sucursal
+                    pointer_sucursal => mytree_bst%search_node_bst(id_sucursal_input, password_sucursal)
+                    if(associated(pointer_sucursal)) then
+                        do while(op_menu_suc /= 5)
+                            print *, "Menu Sucursales"
+                            print *, "[1] - Carga de tecnicos"
+                            print *, "[2] - Ruta optima"
+                            print *, "[3] - Informacion de un tecnico"
+                            print *, "[4] - Listar tecnico"
+                            print *, "[5] - Salir"
+                            print *, "Ingrese una opcion"
+                            read *, op_menu_suc
+                            select case (op_menu_suc)
+                                case(1) !carga de tecnicos
+                                    print *, "Ingrese el nombre del archivo JSON a cargar: "
+                                    read(*, '(A)') name_json_load
+                                    call json%load(filename=trim(name_json_load))
+                                    !call json%load(filename="tecnicos.json")
+                                    
+                                    call json%info('', n_children= size_tecnicos)
+                                    call json%get_core(jsonc)
+                                    call json%get('', p_list_t, found_t)
+                                    
+                                    !Inicializar tabla
+                                    if(.not. allocated(pointer_sucursal%tecnicos))then
+                                        allocate(pointer_sucursal%tecnicos)
+                                        call pointer_sucursal%tecnicos%init(m, maxi) 
                                     end if
                                     
-                                    call jsonc%get_child(p_tecnico, 'direccion', p_atributos_t, found= found_t)
-                                    if(found_t)then
-                                        call jsonc%get(p_atributos_t, direccion)
-                                        print*, direccion
+                                    do i = 1, size_tecnicos
+                                        call jsonc%get_child(p_list_t, i, p_tecnico, found= found_t)
+                                        dpi_str = ''
+                                        nombre = ''
+                                        apellido = ''
+                                        genero = ''
+                                        direccion = ''
+                                        telefono = 0
+    
+                                        call jsonc%get_child(p_tecnico, 'dpi', p_atributos_t, found= found_t)
+                                        if(found_t)then
+                                            call jsonc%get(p_atributos_t, dpi_str)
+                                            read(dpi_str, *) dpi_tecnico
+                                        end if
+    
+                                        call jsonc%get_child(p_tecnico, 'nombre', p_atributos_t, found= found_t)
+                                        if(found_t)then
+                                            call jsonc%get(p_atributos_t, nombre)
+                                        end if
+    
+                                        call jsonc%get_child(p_tecnico, 'apellido', p_atributos_t, found= found_t)
+                                        if(found_t)then
+                                            call jsonc%get(p_atributos_t, apellido)
+                                        end if
+    
+                                        call jsonc%get_child(p_tecnico, 'genero', p_atributos_t, found= found_t)
+                                        if(found_t)then
+                                            call jsonc%get(p_atributos_t, genero)
+                                        end if
+                                        
+                                        call jsonc%get_child(p_tecnico, 'direccion', p_atributos_t, found= found_t)
+                                        if(found_t)then
+                                            call jsonc%get(p_atributos_t, direccion)
+                                        end if
+    
+                                        call jsonc%get_child(p_tecnico, 'telefono', p_atributos_t, found= found_t)
+                                        if(found_t)then
+                                            call jsonc%get(p_atributos_t, telefono)
+                                        end if
+                                        !AÑADIR TECNICOS A MI TABLA HASH
+                                        call pointer_sucursal%tecnicos%insert(&
+                                        techinical(dpi_tecnico, nombre, apellido, genero, direccion, telefono))
+    
+                                        !AÑADIR TECNICOS A MI LISTA TECNICOS GENERAL
+                                        call my_all_techinical%add_techical(dpi_tecnico, nombre, apellido)
+                                    end do
+                                    
+                                    call json%destroy()
+                                    print *, ":. La carga masiva de tecnicos se realizo correctamente .:"
+                                    call pointer_sucursal%tecnicos%graph_hash_table("table_has.dot")
+                                case(2) !Ruta mas optimas 
+                                    print*, "Ingrese el vertice destino"
+                                    read(*, '(I10)') vertice_destino
+                                    print*, "Ingrese el  tecnico que realizara el trabajo"
+                                    read(*, '(I20)') tecnico_input
+                                    
+                                    exist_v_origen = BuscarVertice(g, pointer_sucursal%id_sucursal)
+                                    exist_v_destino = BuscarVertice(g, vertice_destino)
+                                    existe_tech = pointer_sucursal%tecnicos%find_technician(tecnico_input)
+    
+                                    !BUSCAR EN LA LISTA DE TECNICOS SI EXISTE EL DPI INCREMENTAR TRABAJOS REALIZADOS
+                                    call my_all_techinical%find_one_techical(tecnico_input)
+    
+                                    
+                                    if(exist_v_origen .and. exist_v_destino .and. existe_tech)then  ! Si existe (Vertice origen, Vertice destino, Tecnico)
+                                        
+                                        call g%optimal_route(pointer_sucursal%id_sucursal, vertice_destino, &
+                                        tecnico_input, mytree_bst, json_data, my_block_chain, my_all_list_sucursales)
+                                    
+                                        !call my_block_chain%show_block_chain() !Mosntrar lista block chain
+                                        call my_block_chain%grap_block_chain()
                                     end if
-
-                                    call jsonc%get_child(p_tecnico, 'telefono', p_atributos_t, found= found_t)
-                                    if(found_t)then
-                                        call jsonc%get(p_atributos_t, telefono)
-                                    end if
-                                    call pointer_sucursal%tecnicos%insert(&
-                                    techinical(dpi_tecnico, nombre, apellido, genero, direccion, telefono))
-                                end do
-                                
-                                call json%destroy()
-                                call pointer_sucursal%tecnicos%graph_hash_table("table_has.dot")
-                            case(2) !Ruta mas optimas 
-                                print*, "Ingrese el vertice destino"
-                                read(*, '(I10)') vertice_destino
-                                print*, "Ingrese el  tecnico que realizara el trabajo"
-                                read(*, '(I20)') tecnico_input
-                                
-                                exist_v_origen = BuscarVertice(g, pointer_sucursal%id_sucursal)
-                                exist_v_destino = BuscarVertice(g, vertice_destino)
-                                existe_tech = pointer_sucursal%tecnicos%find_technician(tecnico_input)
-
-                                if(exist_v_origen .and. exist_v_destino .and. existe_tech)then  ! Si existe (Vertice origen, Vertice destino, Tecnico)
-                                    call g%optimal_route(pointer_sucursal%id_sucursal, vertice_destino, tecnico_input, mytree_bst)
-                                end if
-                            case(3) !Buscar tecnico por id
-                                print*, "Ingrese el DPI del tecnico"
-                                read(*, '(I20)') tecnico_input
-                                call pointer_sucursal%tecnicos%find_technician_id(tecnico_input)
-                            case(4) !Listar todos los tecnicos
-                                call pointer_sucursal%tecnicos%list_all_technician()
+                                case(3) !Buscar tecnico por id
+                                    print*, "Ingrese el DPI del tecnico"
+                                    read(*, '(I20)') tecnico_input
+                                    call pointer_sucursal%tecnicos%find_technician_id(tecnico_input)
+                                case(4) !Listar todos los tecnicos
+                                    call pointer_sucursal%tecnicos%list_all_technician()
+    
+                            end select
+                        end do
+    
+                    else
+                        print *, "No existe la sucursal con ese id"
+                    end if
+                case (4) !Reportes de la empresa
+                    op_menu_rep = 0
+                    do while(op_menu_rep /= 4)
+                        print *, "--- Menu Reportes ---"
+                        print *, "[1] - Reporte top 5 tecnicos con mas trabajos realizados"
+                        print *, "[2] - Reporte top 5 sucursales con mas trabajos solicitados"
+                        print *, "[3] - Reporte Ganancias y Costos totales de la empresa"
+                        print *, "[4] - Salir"
+                        print *, "Ingrese una opcion"
+                        read *, op_menu_rep
+                        select case (op_menu_rep)
+                            case(1) !REPORTE TOP 5 TECNICOS CON MAS TRABAJOS REALIZADOS
+                                !Ordenar top 5 tecnicos con mayor numero de trabajos realizados
+                                call my_all_techinical%bublle_sort_tech()
+                                !Listar los top 5 tecnicos con mayor numero de trabajos realizados 
+                                call my_all_techinical%top_5_tech()
+                            case (2)
+                                !Ordenar top 5 Sucursales con mayor numero de trabajos solicitados
+                                call my_all_list_sucursales%bublle_sort_list_suc()
+                                !Listar las top 5 sucursales con mayor numero de trabajos solicitados
+                                call my_all_list_sucursales%top_5_sucusales()
+                            case (3)
+                                write(*, '(A, I0)') "Ingresos totales de la empresa: + $ ", ingresos_extras_totales
+                                write(*, '(A, I0)') "Costos totales de la empresa: - $ ", costos_totales
+                                write(*, '(A, I0)') "Ganancias totales de la empresa:  ", ganancias_totales
+    
                         end select
                     end do
-
-                else
-                    print *, "No existe la sucursal con ese id"
-                end if
-        end select
-    end do
-
-    !call mytree_bst%inorderTraversal(mytree_bst%root)
-
-
-    ! Mostrar la lista de adyacencia del grafo
-    !call g%MostrarListaAdyacencia()
-    !call g%GenerarGrafoDot()
-
-
-    !valor = "data1"
-    !call merkle%add(valor)
-    !valor = "data2"
-	!call merkle%add(valor)
-	!valor = "data3"
-    !call merkle%add(valor)
-    !call merkle%generate()
-    !call merkle%showhash(merkle%tophash)
-
-    !llamada 1 
-    !call g%best_route(1,2)
-
-    !call g%best_route_maxPrintMant(3,6)
     
-    !call g%find_all_routes(1,9, all_routes)
-    !call best_maxRoute(all_routes)
-    !call show_all_routes(all_routes)
+            end select
+        end do
+        
+    else
+        print *, "Datos incorrectos para el administrador"
+    end if
 
-    !call g%find_all_routes(1,6, all_routes)
-    !call best_maxRoute(all_routes)
-    !call show_all_routes(all_routes)
 
-    !llamada 2 
-    !call g%best_route(6, 1)
 
-    !print *, "Grafo"
-    !call g%MostrarListaAdyacencia()
-
+    message = "Este es un Hash256!"
+    print *, "Este es un Hash256!"
+    print*, sha256(message)
 
 end program main
